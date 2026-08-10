@@ -20,6 +20,7 @@ public class main {
                 1000.0,
                 5.0,
                 MarketEvent.FeeType.AT_PURCHASE
+                ,100.0
         );
 
         // הדפסת מצב התחלתי

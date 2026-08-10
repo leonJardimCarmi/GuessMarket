@@ -8,9 +8,10 @@ import com.guessmarket.engine.model.LmsrCalculator;
 import com.guessmarket.engine.model.MarketEvent;
 import com.guessmarket.engine.model.Outcome;
 import com.guessmarket.engine.model.Transaction;
-import com.guessmarket.engine.schema.STLCell;
-import com.guessmarket.engine.schema.STLLayout;
-import com.guessmarket.engine.schema.STLSheet;
+
+import com.guessmarket.engine.schema.GMEvent;
+import com.guessmarket.engine.schema.GMLMSR;
+import com.guessmarket.engine.schema.GuessMarket;
 import jdk.jfr.Event;
 
 import java.util.ArrayList;
@@ -26,9 +27,9 @@ public class EngineImpl implements EngineApi {
     private final Map<String , MarketEvent> eventsMap = new HashMap<>();
 
     public void addEventForTesting(String id, String title, String description, double initialBalance,
-                                   double feePercentage, MarketEvent.FeeType feeType){
+                                   double feePercentage, MarketEvent.FeeType feeType, double B){
 
-        MarketEvent event = new MarketEvent(id, title, description, initialBalance, feePercentage, feeType);
+        MarketEvent event = new MarketEvent(id, title, description, initialBalance, feePercentage, feeType ,B);
 
         event.addOutcome(new Outcome("YES"));
         event.addOutcome(new Outcome("NO"));
@@ -39,7 +40,7 @@ public class EngineImpl implements EngineApi {
     private MarketEventDto createDtoEvent(MarketEvent event){
         List<OutcomeDto> outcomeDtos = new ArrayList<>();
         for(Outcome outcome: event.getOutcomes()){
-            double currentPrice = LmsrCalculator.calculatePrice(event.getOutcomes(), outcome.getTitle());
+            double currentPrice = LmsrCalculator.calculatePrice(event.getOutcomes(), outcome.getTitle(),event.getB());
             outcomeDtos.add(new OutcomeDto(outcome.getTitle(),outcome.getSharesBought(), currentPrice));
         }
 
@@ -58,32 +59,65 @@ public class EngineImpl implements EngineApi {
     @Override
     public void loadMarketDataFromXml(String filePath) throws Exception {
         File file = new File(filePath);
-        eventsMap.clear();
+        eventsMap.clear(); // איפוס המפה לפני טעינה חדשה
 
-        JAXBContext jaxbContext = JAXBContext.newInstance("com.guessmarket.engine.schema");
-        Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+        // 1. הגדרת JAXB עם מחלקת השרש GuessMarket
+        JAXBContext jaxbContext = JAXBContext.newInstance(GuessMarket.class);
+        Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
 
-        // 1. טעינת קובץ ה-XML והמרה למחלקת השורש החדשה
-        GuessMarket guessMarket = (GuessMarket) jaxbUnmarshaller.unmarshal(file);
+        // 2. המרת הקובץ לאובייקט GuessMarket
+        GuessMarket guessMarket = (GuessMarket) unmarshaller.unmarshal(file);
 
-        // 2. ריצה על האירועים ב-XML וחילוץ המידע המלא
-        for (GMEvent xmlEvent : guessMarket.getGMEvents().getGMEvent()) {
-            String id = xmlEvent.getId();
-            String title = xmlEvent.getName();
-            String description = xmlEvent.getDescription();
-            double feePercentage = xmlEvent.getComision().getValue(); // או המתודה שנוצרה ב-Comision
+        // 3. מעבר על כל האירועים בקובץ ה-XML
+        if (guessMarket.getGMEvents() != null && guessMarket.getGMEvents().getGMEvent() != null) {
+            for (GMEvent xmlEvent : guessMarket.getGMEvents().getGMEvent()) {
 
-            // יצירת MarketEvent עם המידע האמיתי מה-XML
-            MarketEvent event = new MarketEvent(
-                    id,
-                    title,
-                    description,
-                    0.0,
-                    feePercentage,
-                    MarketEvent.FeeType.AT_PURCHASE
-            );
+                String id = String.valueOf(xmlEvent.getId());
+                String title = "";
+                if (xmlEvent.getName() != null) {
+                    title = String.join(" ", xmlEvent.getName());
+                }
+                String description = xmlEvent.getDescription();
 
-            eventsMap.put(event.getId(), event);
+                // חילוץ נתוני העמלה מתוך תגית Comision
+                double feePercentage = 0.0;
+                MarketEvent.FeeType feeType = MarketEvent.FeeType.AT_PURCHASE;
+
+                if (xmlEvent.getComision() != null) {
+                    feePercentage = xmlEvent.getComision().getValue();
+
+                    // בדיקת סוג העמלה (on-purchase / on-resolution)
+                    if ("on-resolution".equalsIgnoreCase(xmlEvent.getComision().getType())) {
+                        feeType = MarketEvent.FeeType.AT_RESOLUTION;
+                    }
+                }
+                double b = 0.0;
+
+                if (xmlEvent.getGMMethod() != null && xmlEvent.getGMMethod().getGMLMSR() != null) {
+                    b = xmlEvent.getGMMethod().getGMLMSR().getB();
+                }
+
+                // יצירת אובייקט MarketEvent
+                MarketEvent event = new MarketEvent(
+                        id,
+                        title,
+                        description,
+                        0.0, // initialAccountBalance
+                        feePercentage,
+                        feeType
+                        ,b
+                );
+
+                // חילוץ האפשרויות (Outcomes) מתוך GMOptions
+                if (xmlEvent.getGMOptions() != null && xmlEvent.getGMOptions().getGMOption() != null) {
+                    for (String optionTitle : xmlEvent.getGMOptions().getGMOption()) {
+                        event.addOutcome(new Outcome(optionTitle));
+                    }
+                }
+
+                // שמירה במפת האירועים של המנוע
+                eventsMap.put(event.getId(), event);
+            }
         }
     }
 
@@ -125,8 +159,8 @@ public class EngineImpl implements EngineApi {
             throw new IllegalArgumentException("Outcome '" + outcomeTitle + "' does not exist in event '" + eventId + "'.");
         }
 
-        double netCost = LmsrCalculator.calculatePurchaseCost(event.getOutcomes(), outcomeTitle, sharesToBuy);
-        double fee = LmsrCalculator.calculateFee(netCost, event.getFeePercentage());
+        double netCost = LmsrCalculator.calculatePurchaseCost(event.getOutcomes(), outcomeTitle, sharesToBuy, event.getB());
+        double fee = LmsrCalculator.calculateFee(netCost, event.getFeePercentage(), event.getB());
 
         double totalPaid = netCost;
 
