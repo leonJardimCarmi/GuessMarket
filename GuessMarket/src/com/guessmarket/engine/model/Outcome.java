@@ -2,7 +2,7 @@ package com.guessmarket.engine.model;
 
 public class Outcome {
     private final String title;
-    private int sharesBought;
+    private double sharesBought;
 
 
     public Outcome(String title) {
@@ -14,11 +14,11 @@ public class Outcome {
         return title;
     }
 
-    public int getSharesBought() {
+    public double getSharesBought() {
         return sharesBought;
     }
 
-    public void addShares(int count){
+    public void addShares(double count){
         if (count < 0){
             throw new IllegalArgumentException("cannot add negative shares count");
         }
