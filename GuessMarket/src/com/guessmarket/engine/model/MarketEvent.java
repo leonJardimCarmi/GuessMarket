@@ -27,6 +27,13 @@ public class MarketEvent {
     double b;
 
     public MarketEvent(String id, String title, String description, double initialAccountBalance,double feePercentage, FeeType feeType , double B){
+       if( B<= 0){
+           throw new IllegalArgumentException("LMSR parameter B must be strictly positive. ");
+       }
+       if (feePercentage < 0 || feePercentage >90){
+           throw new IllegalArgumentException("Fee percentage must be between 0 and 90");
+       }
+
         this.id = id;
         this.title = title;
         this.description = description;

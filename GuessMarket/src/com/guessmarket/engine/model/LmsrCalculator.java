@@ -29,7 +29,7 @@ public class LmsrCalculator {
         for(Outcome outcome : outcomes){
             double shares = outcome.getSharesBought();
             if(outcome.getTitle().equalsIgnoreCase(targetOutcomeTitle)){
-                shares=+ amountToBuy;
+                shares += amountToBuy;
                 foundTarget = true;
             }
             sumExponentialsAfter += Math.exp(shares / B);

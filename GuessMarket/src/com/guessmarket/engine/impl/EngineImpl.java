@@ -26,17 +26,6 @@ public class EngineImpl implements EngineApi {
 
     private final Map<String , MarketEvent> eventsMap = new HashMap<>();
 
-    public void addEventForTesting(String id, String title, String description, double initialBalance,
-                                   double feePercentage, MarketEvent.FeeType feeType, double B){
-
-        MarketEvent event = new MarketEvent(id, title, description, initialBalance, feePercentage, feeType ,B);
-
-        event.addOutcome(new Outcome("YES"));
-        event.addOutcome(new Outcome("NO"));
-
-        eventsMap.put(id, event);
-    }
-
     private MarketEventDto createDtoEvent(MarketEvent event){
         List<OutcomeDto> outcomeDtos = new ArrayList<>();
         for(Outcome outcome: event.getOutcomes()){
@@ -59,7 +48,12 @@ public class EngineImpl implements EngineApi {
     @Override
     public void loadMarketDataFromXml(String filePath) throws Exception {
         File file = new File(filePath);
-        eventsMap.clear(); // איפוס המפה לפני טעינה חדשה
+        if (!filePath.toLowerCase().endsWith(".xml")) {
+            throw new IllegalArgumentException("File must have a .xml extension.");
+        }
+        if (!file.exists()) {
+            throw new IllegalArgumentException("File does not exist at path: " + filePath);
+        }
 
         // 1. הגדרת JAXB עם מחלקת השרש GuessMarket
         JAXBContext jaxbContext = JAXBContext.newInstance(GuessMarket.class);
@@ -68,11 +62,20 @@ public class EngineImpl implements EngineApi {
         // 2. המרת הקובץ לאובייקט GuessMarket
         GuessMarket guessMarket = (GuessMarket) unmarshaller.unmarshal(file);
 
+        // מפה זמנית לאיסוף האירועים (כדי לא לאפס את המפה הקיימת במנוע אם הקובץ נכשל באמצע)
+        Map<String, MarketEvent> tempEventsMap = new HashMap<>();
+
         // 3. מעבר על כל האירועים בקובץ ה-XML
         if (guessMarket.getGMEvents() != null && guessMarket.getGMEvents().getGMEvent() != null) {
             for (GMEvent xmlEvent : guessMarket.getGMEvents().getGMEvent()) {
 
                 String id = String.valueOf(xmlEvent.getId());
+
+                // 🛑 בדיקה 1: מזהה כפול בקובץ ה-XML
+                if (tempEventsMap.containsKey(id)) {
+                    throw new IllegalArgumentException("Duplicate event ID found in XML: " + id);
+                }
+
                 String title = "";
                 if (xmlEvent.getName() != null) {
                     title = String.join(" ", xmlEvent.getName());
@@ -91,21 +94,21 @@ public class EngineImpl implements EngineApi {
                         feeType = MarketEvent.FeeType.AT_RESOLUTION;
                     }
                 }
-                double b = 0.0;
 
+                double b = 0.0;
                 if (xmlEvent.getGMMethod() != null && xmlEvent.getGMMethod().getGMLMSR() != null) {
                     b = xmlEvent.getGMMethod().getGMLMSR().getB();
                 }
 
-                // יצירת אובייקט MarketEvent
+                // יצירת אובייקט MarketEvent (הבנאי יבדוק ש-b > 0 וש-feePercentage בטווח התקין)
                 MarketEvent event = new MarketEvent(
                         id,
                         title,
                         description,
                         0.0, // initialAccountBalance
                         feePercentage,
-                        feeType
-                        ,b
+                        feeType,
+                        b
                 );
 
                 // חילוץ האפשרויות (Outcomes) מתוך GMOptions
@@ -115,10 +118,19 @@ public class EngineImpl implements EngineApi {
                     }
                 }
 
-                // שמירה במפת האירועים של המנוע
-                eventsMap.put(event.getId(), event);
+                // 🛑 בדיקה 2: לפחות 2 אפשרויות לכל אירוע (מתבצעת רק אחרי שהוספנו את ה-Outcomes)
+                if (event.getOutcomes().size() < 2) {
+                    throw new IllegalArgumentException("Event ID " + id + " must have at least 2 outcomes.");
+                }
+
+                // הוספה למפה הזמנית
+                tempEventsMap.put(event.getId(), event);
             }
         }
+
+        // אם כל הקובץ תקין - מאפסים את המפה הראשית ומעבירים אליה את הנתונים
+        eventsMap.clear();
+        eventsMap.putAll(tempEventsMap);
     }
 
     @Override
@@ -193,6 +205,21 @@ public class EngineImpl implements EngineApi {
         Outcome outcome = event.getOutcomeByTitle(winningoutcomeTitle);
         if(outcome == null ){
             throw new IllegalArgumentException("Outcome '" + winningoutcomeTitle + "' does not exist in event '" + eventId + "'.");
+        }
+
+        if(event.getFeeType() == MarketEvent.FeeType.AT_RESOLUTION && event.getFeePercentage() > 0){
+            double totalWinningInvestment = 0.0;
+
+            for (Transaction transaction : event.getTransactions()){
+                if(transaction.getOutcomeTitle().equalsIgnoreCase(winningoutcomeTitle)){
+                    totalWinningInvestment += transaction.getCost();
+                }
+            }
+
+            double feeAmount = totalWinningInvestment * (event.getFeePercentage() / 100.0);
+            if(feeAmount > 0){
+                event.getAccount().addFee(feeAmount);
+            }
         }
 
         event.closeEvent(winningoutcomeTitle);
