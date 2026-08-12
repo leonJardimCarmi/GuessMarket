@@ -14,15 +14,16 @@ import com.guessmarket.engine.schema.GMLMSR;
 import com.guessmarket.engine.schema.GuessMarket;
 import jdk.jfr.Event;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
-import java.io.File;
 
-public class EngineImpl implements EngineApi {
+public class EngineImpl implements EngineApi, Serializable {
+    private static final long serialVersionUID = 1L;
 
     private final Map<String , MarketEvent> eventsMap = new HashMap<>();
 
@@ -55,23 +56,18 @@ public class EngineImpl implements EngineApi {
             throw new IllegalArgumentException("File does not exist at path: " + filePath);
         }
 
-        // 1. הגדרת JAXB עם מחלקת השרש GuessMarket
         JAXBContext jaxbContext = JAXBContext.newInstance(GuessMarket.class);
         Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
 
-        // 2. המרת הקובץ לאובייקט GuessMarket
         GuessMarket guessMarket = (GuessMarket) unmarshaller.unmarshal(file);
 
-        // מפה זמנית לאיסוף האירועים (כדי לא לאפס את המפה הקיימת במנוע אם הקובץ נכשל באמצע)
         Map<String, MarketEvent> tempEventsMap = new HashMap<>();
 
-        // 3. מעבר על כל האירועים בקובץ ה-XML
         if (guessMarket.getGMEvents() != null && guessMarket.getGMEvents().getGMEvent() != null) {
             for (GMEvent xmlEvent : guessMarket.getGMEvents().getGMEvent()) {
 
                 String id = String.valueOf(xmlEvent.getId());
 
-                // 🛑 בדיקה 1: מזהה כפול בקובץ ה-XML
                 if (tempEventsMap.containsKey(id)) {
                     throw new IllegalArgumentException("Duplicate event ID found in XML: " + id);
                 }
@@ -82,14 +78,12 @@ public class EngineImpl implements EngineApi {
                 }
                 String description = xmlEvent.getDescription();
 
-                // חילוץ נתוני העמלה מתוך תגית Comision
                 double feePercentage = 0.0;
                 MarketEvent.FeeType feeType = MarketEvent.FeeType.AT_PURCHASE;
 
                 if (xmlEvent.getComision() != null) {
                     feePercentage = xmlEvent.getComision().getValue();
 
-                    // בדיקת סוג העמלה (on-purchase / on-resolution)
                     if ("on-resolution".equalsIgnoreCase(xmlEvent.getComision().getType())) {
                         feeType = MarketEvent.FeeType.AT_RESOLUTION;
                     }
@@ -100,7 +94,6 @@ public class EngineImpl implements EngineApi {
                     b = xmlEvent.getGMMethod().getGMLMSR().getB();
                 }
 
-                // יצירת אובייקט MarketEvent (הבנאי יבדוק ש-b > 0 וש-feePercentage בטווח התקין)
                 MarketEvent event = new MarketEvent(
                         id,
                         title,
@@ -111,24 +104,20 @@ public class EngineImpl implements EngineApi {
                         b
                 );
 
-                // חילוץ האפשרויות (Outcomes) מתוך GMOptions
                 if (xmlEvent.getGMOptions() != null && xmlEvent.getGMOptions().getGMOption() != null) {
                     for (String optionTitle : xmlEvent.getGMOptions().getGMOption()) {
                         event.addOutcome(new Outcome(optionTitle));
                     }
                 }
 
-                // 🛑 בדיקה 2: לפחות 2 אפשרויות לכל אירוע (מתבצעת רק אחרי שהוספנו את ה-Outcomes)
                 if (event.getOutcomes().size() < 2) {
                     throw new IllegalArgumentException("Event ID " + id + " must have at least 2 outcomes.");
                 }
 
-                // הוספה למפה הזמנית
                 tempEventsMap.put(event.getId(), event);
             }
         }
 
-        // אם כל הקובץ תקין - מאפסים את המפה הראשית ומעבירים אליה את הנתונים
         eventsMap.clear();
         eventsMap.putAll(tempEventsMap);
     }
@@ -224,4 +213,29 @@ public class EngineImpl implements EngineApi {
 
         event.closeEvent(winningoutcomeTitle);
     }
+
+    @Override
+    public void saveStateToFile(String filePath) throws IOException {
+        String fullPath = ensureExtension(filePath);
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fullPath))) {
+            out.writeObject(this);
+        }
+    }
+
+    public static EngineImpl loadStateFromFile(String filePath) throws IOException, ClassNotFoundException{
+        String fullPath = ensureExtension(filePath);
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(fullPath))) {
+            return (EngineImpl) in.readObject();
+        }
+    }
+
+    private static  String ensureExtension(String filePath){
+        if(!filePath.endsWith(".dat")){
+            return filePath + ".dat";
+        }
+        return filePath;
+    }
+
+
+
 }

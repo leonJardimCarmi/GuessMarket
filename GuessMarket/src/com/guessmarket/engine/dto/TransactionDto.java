@@ -1,6 +1,9 @@
 package com.guessmarket.engine.dto;
 
-public class TransactionDto {
+import java.io.Serializable;
+
+public class TransactionDto implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private final String outcomeTitle;
     private final double sharesBought;

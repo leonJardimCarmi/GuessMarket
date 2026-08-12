@@ -12,7 +12,7 @@ import java.util.Scanner;
 
 public class ConsoleUI {
 
-    private final EngineApi engine = new EngineImpl();
+    private EngineApi engine = new EngineImpl();
     private final Scanner scanner = new Scanner(System.in);
 
     public static void main(String[] args){
@@ -45,6 +45,12 @@ public class ConsoleUI {
                         closeEvent();
                         break;
                     case "6":
+                        saveSystemState();
+                        break;
+                    case "7":
+                        loadSystemState();
+                        break;
+                    case "8":
                         exit = true;
                         System.out.println("See ya! ");
                         break;
@@ -59,6 +65,40 @@ public class ConsoleUI {
             System.out.println();
         }
 
+    }
+
+    private void loadSystemState() {
+        System.out.print("Enter file path (without extension): ");
+        String path = scanner.nextLine().trim();
+
+        if(path.isEmpty()){
+            System.out.println("Path cannot be empty. ");
+            return;
+        }
+
+        try{
+            this.engine = EngineImpl.loadStateFromFile(path);
+            System.out.println("System state loaded successfully. ");
+        }catch (Exception e){
+            System.out.println("Error loading system state: " + e.getMessage());
+        }
+    }
+
+    private void saveSystemState() {
+        System.out.print("Enter file path (without extension): ");
+        String path = scanner.nextLine().trim();
+
+        if(path.isEmpty()){
+            System.out.println("Path cannot be empty. ");
+            return;
+        }
+
+        try{
+            engine.saveStateToFile(path);
+            System.out.println("System state saved successfully. ");
+        }catch (Exception e){
+            System.out.println("Error saving system state: " + e.getMessage());
+        }
     }
 
     private void closeEvent() {
@@ -351,8 +391,10 @@ public class ConsoleUI {
         System.out.println("3. Display specific market event status");
         System.out.println("4. Buy shares in an event");
         System.out.println("5. Close a market event");
-        System.out.println("6. Exit");
-        System.out.print("Please select an option (1-6): ");
+        System.out.println("6. Save system state");
+        System.out.println("7. Load system state");
+        System.out.println("8. Exit");
+        System.out.print("Please select an option (1-8): ");
     }
 
 

@@ -1,6 +1,9 @@
 package com.guessmarket.engine.dto;
 
-public class OutcomeDto {
+import java.io.Serializable;
+
+public class OutcomeDto implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private final String title;
     private final double sharesCount;

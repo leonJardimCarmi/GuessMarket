@@ -1,11 +1,13 @@
 package com.guessmarket.engine.model;
 
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class MarketEvent {
+public class MarketEvent implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     public enum FeeType{
         AT_PURCHASE,
