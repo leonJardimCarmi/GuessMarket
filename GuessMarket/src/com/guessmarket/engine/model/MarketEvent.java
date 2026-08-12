@@ -24,8 +24,16 @@ public class MarketEvent {
     private final Account account;
     private final List<Outcome> outcomes;
     private final List<Transaction> transactions;
+    double b;
 
-    public MarketEvent(String id, String title, String description, double initialAccountBalance,double feePercentage, FeeType feeType ){
+    public MarketEvent(String id, String title, String description, double initialAccountBalance,double feePercentage, FeeType feeType , double B){
+       if( B<= 0){
+           throw new IllegalArgumentException("LMSR parameter B must be strictly positive. ");
+       }
+       if (feePercentage < 0 || feePercentage >90){
+           throw new IllegalArgumentException("Fee percentage must be between 0 and 90");
+       }
+
         this.id = id;
         this.title = title;
         this.description = description;
@@ -38,6 +46,7 @@ public class MarketEvent {
         this.account = new Account(initialAccountBalance);
         this.outcomes = new ArrayList<>();
         this.transactions = new ArrayList<>();
+        b= B;
     }
 
     public String getId(){
@@ -78,6 +87,10 @@ public class MarketEvent {
 
     public List<Transaction> getTransactions() {
         return transactions;
+    }
+
+    public double getB() {
+        return b;
     }
 
     public void addOutcome(Outcome outcome){

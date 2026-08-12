@@ -2,12 +2,12 @@ package com.guessmarket.engine.model;
 
 public class Transaction {
     private final String outcomeTitle;
-    private final int shareAmount;
+    private final double shareAmount;
     private final double cost;
     private final double feePaid;
 
 
-    public Transaction(String outcomeTitle, int shareAmount, double cost, double feePaid) {
+    public Transaction(String outcomeTitle, double shareAmount, double cost, double feePaid) {
         this.outcomeTitle = outcomeTitle;
         this.shareAmount = shareAmount;
         this.cost = cost;
@@ -18,7 +18,7 @@ public class Transaction {
         return outcomeTitle;
     }
 
-    public int getShareAmount(){
+    public double getShareAmount(){
         return shareAmount;
     }
 
