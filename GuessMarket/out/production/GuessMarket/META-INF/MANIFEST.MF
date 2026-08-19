@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Main-Class: com.guessmarket.ui.ConsoleUI
+Class-Path: jaxb-core.jar jakarta.xml.bind-api.jar jaxb-jxc.jar jaxb-imp
+ l.jar jakarta.activation-api.jar jaxb-xjc.jar angus-activation.jar jaka
+ rta.xml.bind-api.jar
+
