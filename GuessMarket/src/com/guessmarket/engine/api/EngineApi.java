@@ -1,12 +1,12 @@
 package com.guessmarket.engine.api;
 
 import com.guessmarket.engine.dto.MarketEventDto;
-import com.guessmarket.engine.impl.EngineImpl;
-
-import java.io.IOException;
+import com.guessmarket.engine.dto.OrderBookDto;
+import com.guessmarket.engine.dto.UserDto;
+import java.io.Serializable;
 import java.util.List;
 
-public interface EngineApi {
+public interface EngineApi extends Serializable {
 
     void loadMarketDataFromXml(String filePath) throws Exception;
 
@@ -14,9 +14,23 @@ public interface EngineApi {
 
     MarketEventDto getMarketEventById(String eventId);
 
-    void buyShares(String eventId, String outcomeTitle, double sharesToBuy);
+    List<UserDto> getAllUsers();
 
-    void closeMarket(String eventId, String winningoutcomeTitle);
+    UserDto getUserByName(String name);
 
-    void saveStateToFile(String filePath) throws IOException;
+    void buySharesLMSR(String userName, String eventId, String outcomeTitle, double sharesToBuy);
+
+    void addOrder(String userName, String eventId, String outcomeTitle, String sideStr, String actionTypeStr, double price, double shares);
+
+    OrderBookDto getOrderBook(String eventId, String outcomeTitle);
+
+    void closeMarket(String eventId, String winningOutcomeTitle);
+
+    void depositFunds(String userName, double amount);
+
+    void saveStateToFile(String filePath) throws Exception;
+
+    static EngineApi loadStateFromFile(String filePath) throws Exception {
+        return null;
+    }
 }
