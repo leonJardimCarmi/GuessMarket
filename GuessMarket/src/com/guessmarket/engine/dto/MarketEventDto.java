@@ -1,6 +1,7 @@
 package com.guessmarket.engine.dto;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 
 public class MarketEventDto implements Serializable {
@@ -11,27 +12,33 @@ public class MarketEventDto implements Serializable {
     private final String description;
     private final boolean isActive;
     private final String winningOutcome;
-    private final double accountBalance;
+
+    private final String marketMakerName;
+    private final double marketMakerBalance;
     private final double totalFeesCollected;
     private final double feePercentage;
     private final String feeType;
+    private final String tradingMethod;
 
     private final List<OutcomeDto> outcomes;
     private final List<TransactionDto> transactions;
 
-
-    public MarketEventDto(String id, String title, String description, boolean isActive, String winningOutcome, double accountBalance,
-                          double totalFeesCollected, double feePercentage, String feeType, List<OutcomeDto> outcomes,
+    public MarketEventDto(String id, String title, String description, boolean isActive,
+                          String winningOutcome, String marketMakerName, double marketMakerBalance,
+                          double totalFeesCollected, double feePercentage, String feeType,
+                          String tradingMethod, List<OutcomeDto> outcomes,
                           List<TransactionDto> transactions) {
         this.id = id;
         this.title = title;
         this.description = description;
         this.isActive = isActive;
         this.winningOutcome = winningOutcome;
-        this.accountBalance = accountBalance;
+        this.marketMakerName = marketMakerName;
+        this.marketMakerBalance = marketMakerBalance;
         this.totalFeesCollected = totalFeesCollected;
         this.feePercentage = feePercentage;
         this.feeType = feeType;
+        this.tradingMethod = tradingMethod;
         this.outcomes = outcomes;
         this.transactions = transactions;
     }
@@ -56,8 +63,12 @@ public class MarketEventDto implements Serializable {
         return winningOutcome;
     }
 
-    public double getAccountBalance() {
-        return accountBalance;
+    public String getMarketMakerName() {
+        return marketMakerName;
+    }
+
+    public double getMarketMakerBalance() {
+        return marketMakerBalance;
     }
 
     public double getTotalFeesCollected() {
@@ -72,12 +83,15 @@ public class MarketEventDto implements Serializable {
         return feeType;
     }
 
+    public String getTradingMethod() {
+        return tradingMethod;
+    }
+
     public List<OutcomeDto> getOutcomes() {
-        return outcomes;
+        return outcomes != null ? Collections.unmodifiableList(outcomes) : Collections.emptyList();
     }
 
     public List<TransactionDto> getTransactions() {
-        return transactions;
+        return transactions != null ? Collections.unmodifiableList(transactions) : Collections.emptyList();
     }
 }
-
