@@ -2,6 +2,10 @@ package com.guessmarket.ui;
 
 import com.guessmarket.engine.dto.*;
 import com.guessmarket.engine.impl.EngineImpl;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -11,7 +15,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
-import javafx.application.Platform;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -73,6 +76,7 @@ public class MainController {
     // ===== Filters =====
     @FXML private ComboBox<String> filterMethodComboBox;
     @FXML private ComboBox<String> filterStatusComboBox;
+    @FXML private ComboBox<String> filterMarketMakerComboBox;
 
     // ===== Event Info & Order Book Stats Labels =====
     @FXML private Label eventNameLabel;
@@ -81,13 +85,25 @@ public class MainController {
     @FXML private Label askPriceLabel;
     @FXML private Label midPriceLabel;
     @FXML private Label spreadLabel;
+    @FXML private Label lmsrInfoLabel;
 
     // ===== Container for Order Book Tables =====
     @FXML private HBox orderBookTablesContainer;
 
+    @FXML private ScrollPane lmsrInfoScrollPane;
+    @FXML private Label selectedUserTitleLabel;
+    @FXML private Label statusLabel;
+
+    // ===== Bonus 1: Theme Selector =====
+    @FXML private ComboBox<String> themeComboBox;
+
     private EngineImpl engine;
 
-    // Store currently selected event to maintain focus and state during refreshes
+    // Collections for Event Filtering
+    private final ObservableList<MarketEventDto> masterEventsList = FXCollections.observableArrayList();
+    private FilteredList<MarketEventDto> filteredEventsList;
+
+    // Store currently selected event
     private MarketEventDto currentlySelectedEvent;
 
     public void setEngine(EngineImpl engine) {
@@ -111,40 +127,77 @@ public class MainController {
         if (eventStatusColumn != null) eventStatusColumn.setCellValueFactory(new PropertyValueFactory<>("active"));
 
         if (userNameColumn != null) userNameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        if (userBalanceColumn != null) userBalanceColumn.setCellValueFactory(new PropertyValueFactory<>("balance"));
+        if (userBalanceColumn != null) {
+            userBalanceColumn.setCellValueFactory(new PropertyValueFactory<>("balance"));
+            setTwoDecimalCellFactory(userBalanceColumn);
+        }
 
-        // 3. Map user transactions/holdings table columns
+        // 3. Map user transactions/holdings table columns + 2-decimal formatting
         if (userHoldingsEventIdColumn != null) userHoldingsEventIdColumn.setCellValueFactory(new PropertyValueFactory<>("eventId"));
         if (userHoldingsOutcomeColumn != null) userHoldingsOutcomeColumn.setCellValueFactory(new PropertyValueFactory<>("outcomeTitle"));
-        if (userHoldingsSharesColumn != null) userHoldingsSharesColumn.setCellValueFactory(new PropertyValueFactory<>("shares"));
-        if (userHoldingsPriceColumn != null) userHoldingsPriceColumn.setCellValueFactory(new PropertyValueFactory<>("amountPaid"));
-        if (userHoldingsFeeColumn != null) userHoldingsFeeColumn.setCellValueFactory(new PropertyValueFactory<>("feePaid"));
-        if (userHoldingsStatusColumn != null) userHoldingsStatusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
-        if (userHoldingsPnLColumn != null) userHoldingsPnLColumn.setCellValueFactory(new PropertyValueFactory<>("profitLoss"));
 
-        // 4. Map Option 1 (Order Book Buy) columns
+        if (userHoldingsSharesColumn != null) {
+            userHoldingsSharesColumn.setCellValueFactory(new PropertyValueFactory<>("shares"));
+            setTwoDecimalCellFactory(userHoldingsSharesColumn);
+        }
+        if (userHoldingsPriceColumn != null) {
+            userHoldingsPriceColumn.setCellValueFactory(new PropertyValueFactory<>("amountPaid"));
+            setTwoDecimalCellFactory(userHoldingsPriceColumn);
+        }
+        if (userHoldingsFeeColumn != null) {
+            userHoldingsFeeColumn.setCellValueFactory(new PropertyValueFactory<>("feePaid"));
+            setTwoDecimalCellFactory(userHoldingsFeeColumn);
+        }
+        if (userHoldingsStatusColumn != null) userHoldingsStatusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
+        if (userHoldingsPnLColumn != null) {
+            userHoldingsPnLColumn.setCellValueFactory(new PropertyValueFactory<>("profitLoss"));
+            setTwoDecimalCellFactory(userHoldingsPnLColumn);
+        }
+
+        // 4. Map Option 1 (Order Book Buy) columns + 2-decimal formatting
         if (opt1UserColumn != null) opt1UserColumn.setCellValueFactory(new PropertyValueFactory<>("userName"));
         if (opt1OutcomeColumn != null) opt1OutcomeColumn.setCellValueFactory(new PropertyValueFactory<>("outcomeTitle"));
-        if (opt1SharesColumn != null) opt1SharesColumn.setCellValueFactory(new PropertyValueFactory<>("remainingShares"));
-        if (opt1PriceColumn != null) opt1PriceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+        if (opt1SharesColumn != null) {
+            opt1SharesColumn.setCellValueFactory(new PropertyValueFactory<>("remainingShares"));
+            setTwoDecimalCellFactory(opt1SharesColumn);
+        }
+        if (opt1PriceColumn != null) {
+            opt1PriceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+            setTwoDecimalCellFactory(opt1PriceColumn);
+        }
 
-        // 5. Map Option 2 (Order Book Sell) columns
+        // 5. Map Option 2 (Order Book Sell) columns + 2-decimal formatting
         if (opt2UserColumn != null) opt2UserColumn.setCellValueFactory(new PropertyValueFactory<>("userName"));
         if (opt2OutcomeColumn != null) opt2OutcomeColumn.setCellValueFactory(new PropertyValueFactory<>("outcomeTitle"));
-        if (opt2SharesColumn != null) opt2SharesColumn.setCellValueFactory(new PropertyValueFactory<>("remainingShares"));
-        if (opt2PriceColumn != null) opt2PriceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+        if (opt2SharesColumn != null) {
+            opt2SharesColumn.setCellValueFactory(new PropertyValueFactory<>("remainingShares"));
+            setTwoDecimalCellFactory(opt2SharesColumn);
+        }
+        if (opt2PriceColumn != null) {
+            opt2PriceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+            setTwoDecimalCellFactory(opt2PriceColumn);
+        }
 
-        // 6. Map Participations columns
+        // 6. Map Participations columns + 2-decimal formatting
         if (partUserColumn != null) partUserColumn.setCellValueFactory(new PropertyValueFactory<>("userName"));
         if (partOutcomeColumn != null) partOutcomeColumn.setCellValueFactory(new PropertyValueFactory<>("outcomeTitle"));
-        if (partPriceColumn != null) partPriceColumn.setCellValueFactory(new PropertyValueFactory<>("amountPaid"));
+        if (partPriceColumn != null) {
+            partPriceColumn.setCellValueFactory(new PropertyValueFactory<>("amountPaid"));
+            setTwoDecimalCellFactory(partPriceColumn);
+        }
 
         // 7. Hide ProgressBar initially
         if (loadProgressBar != null) {
             loadProgressBar.setVisible(false);
         }
 
-        // 8. Event selection listener
+        // 8. Initialize Events Filters & Wrapped List
+        initializeEventsFilters();
+
+        // 9. Setup Theme Picker (Bonus 1)
+        setupThemePicker();
+
+        // 10. Event selection listener
         if (eventsTableView != null) {
             eventsTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, selectedEvent) -> {
                 if (selectedEvent != null) {
@@ -154,7 +207,7 @@ public class MainController {
             });
         }
 
-        // 9. User selection listener
+        // 11. User selection listener
         if (usersTableView != null) {
             usersTableView.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, selectedUser) -> {
                 if (selectedUser != null) {
@@ -165,11 +218,169 @@ public class MainController {
     }
 
     /**
-     * Updates display of selected user's participation history and holdings
-     * according to trading method (LMSR transaction history vs. Order Book holdings & PnL).
+     * Bonus 1: Initializes Theme Selection Dropdown
      */
+    private void setupThemePicker() {
+        if (themeComboBox != null) {
+            themeComboBox.getItems().setAll("Default", "Dark Mode", "Vibrant");
+            themeComboBox.getSelectionModel().selectFirst();
+
+            themeComboBox.valueProperty().addListener((obs, oldTheme, newTheme) -> {
+                if (newTheme != null) {
+                    applyTheme(newTheme);
+                }
+            });
+        }
+    }
+
+    /**
+     * Bonus 1: Dynamically applies external CSS stylesheets
+     */
+    private void applyTheme(String themeName) {
+        if (mainTabPane == null || mainTabPane.getScene() == null) return;
+
+        var stylesheets = mainTabPane.getScene().getStylesheets();
+        stylesheets.clear();
+
+        String cssPath = switch (themeName) {
+            case "Dark Mode" -> "/dark.css";
+            case "Vibrant" -> "/vibrant.css";
+            default -> "/default.css";
+        };
+
+        var resource = getClass().getResource(cssPath);
+        if (resource != null) {
+            stylesheets.add(resource.toExternalForm());
+        } else {
+            System.err.println("CSS file not found: " + cssPath);
+        }
+    }
+
+    /**
+     * Helper method to set 2-decimal digits formatting for Double TableColumns
+     */
+    private <T> void setTwoDecimalCellFactory(TableColumn<T, Double> column) {
+        column.setCellFactory(col -> new TableCell<T, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f", item));
+                }
+            }
+        });
+    }
+
+    /**
+     * Initializes filter controls for Market Events including Method, Status, and Market Maker
+     */
+    private void initializeEventsFilters() {
+        if (filterMethodComboBox != null) {
+            filterMethodComboBox.getItems().setAll("All", "LMSR", "Order Book");
+            filterMethodComboBox.getSelectionModel().selectFirst();
+            filterMethodComboBox.valueProperty().addListener((obs, oldVal, newVal) -> applyEventsFilter());
+        }
+
+        if (filterStatusComboBox != null) {
+            filterStatusComboBox.getItems().setAll("All", "Active", "Closed");
+            filterStatusComboBox.getSelectionModel().selectFirst();
+            filterStatusComboBox.valueProperty().addListener((obs, oldVal, newVal) -> applyEventsFilter());
+        }
+
+        if (filterMarketMakerComboBox != null) {
+            filterMarketMakerComboBox.getItems().setAll("All");
+            filterMarketMakerComboBox.getSelectionModel().selectFirst();
+            filterMarketMakerComboBox.valueProperty().addListener((obs, oldVal, newVal) -> applyEventsFilter());
+        }
+
+        filteredEventsList = new FilteredList<>(masterEventsList, p -> true);
+        if (eventsTableView != null) {
+            eventsTableView.setItems(filteredEventsList);
+        }
+    }
+
+    /**
+     * Populates the Market Maker filter ComboBox based on unique market makers in loaded events
+     */
+    private void populateMarketMakerFilter() {
+        if (filterMarketMakerComboBox == null || engine == null) return;
+
+        List<String> mmList = new ArrayList<>();
+        mmList.add("All");
+
+        List<MarketEventDto> events = engine.getAllMarketEvents();
+        if (events != null) {
+            for (MarketEventDto event : events) {
+                if (event.getMarketMakerName() != null && !mmList.contains(event.getMarketMakerName())) {
+                    mmList.add(event.getMarketMakerName());
+                }
+            }
+        }
+
+        String currentSelection = filterMarketMakerComboBox.getValue();
+        filterMarketMakerComboBox.getItems().setAll(mmList);
+        if (currentSelection != null && mmList.contains(currentSelection)) {
+            filterMarketMakerComboBox.setValue(currentSelection);
+        } else {
+            filterMarketMakerComboBox.getSelectionModel().selectFirst();
+        }
+    }
+
+    /**
+     * Applies filter predicate on master events list
+     */
+    private void applyEventsFilter() {
+        if (filteredEventsList == null) return;
+
+        String selectedMethod = (filterMethodComboBox != null) ? filterMethodComboBox.getValue() : "All";
+        String selectedStatus = (filterStatusComboBox != null) ? filterStatusComboBox.getValue() : "All";
+        String selectedMM = (filterMarketMakerComboBox != null) ? filterMarketMakerComboBox.getValue() : "All";
+
+        filteredEventsList.setPredicate(event -> {
+            if (event == null) return false;
+
+            // 1. Filter by Trading Method
+            boolean matchesMethod = true;
+            if (selectedMethod != null && !"All".equalsIgnoreCase(selectedMethod)) {
+                String methodStr = event.getTradingMethod() != null ? event.getTradingMethod().toLowerCase() : "";
+                if ("lmsr".equalsIgnoreCase(selectedMethod)) {
+                    matchesMethod = methodStr.contains("lmsr");
+                } else if ("order book".equalsIgnoreCase(selectedMethod)) {
+                    matchesMethod = methodStr.contains("order_book") || methodStr.contains("ob") || methodStr.contains("order book");
+                }
+            }
+
+            // 2. Filter by Active/Closed Status
+            boolean matchesStatus = true;
+            if (selectedStatus != null && !"All".equalsIgnoreCase(selectedStatus)) {
+                if ("active".equalsIgnoreCase(selectedStatus)) {
+                    matchesStatus = event.isActive();
+                } else if ("closed".equalsIgnoreCase(selectedStatus)) {
+                    matchesStatus = !event.isActive();
+                }
+            }
+
+            // 3. Filter by Market Maker
+            boolean matchesMM = true;
+            if (selectedMM != null && !"All".equalsIgnoreCase(selectedMM)) {
+                matchesMM = selectedMM.equalsIgnoreCase(event.getMarketMakerName());
+            }
+
+            return matchesMethod && matchesStatus && matchesMM;
+        });
+    }
+
     private void onUserSelected(UserDto selectedUser) {
-        if (userHoldingsTableView == null || selectedUser == null || engine == null) return;
+        if (selectedUser == null || engine == null) return;
+
+        if (selectedUserTitleLabel != null) {
+            selectedUserTitleLabel.setText(selectedUser.getName() +
+                    " (Balance: $" + String.format("%.2f", selectedUser.getBalance()) + ")");
+        }
+
+        if (userHoldingsTableView == null) return;
 
         List<UserTransactionRow> rows = new ArrayList<>();
         Map<String, Map<String, Double>> holdings = selectedUser.getHoldings();
@@ -183,7 +394,6 @@ public class MainController {
                         || "OB".equalsIgnoreCase(event.getTradingMethod());
 
                 if (isOrderBook) {
-                    // ===== ORDER BOOK: Display Current Holdings, Fees, and PnL =====
                     Map<String, Double> outcomeHoldings = holdings.get(eventId);
                     if (outcomeHoldings != null) {
                         for (Map.Entry<String, Double> entry : outcomeHoldings.entrySet()) {
@@ -221,7 +431,6 @@ public class MainController {
                         }
                     }
                 } else {
-                    // ===== LMSR: Display Transaction History (Newest to Oldest) =====
                     if (event.getTransactions() != null) {
                         List<TransactionDto> userTxList = new ArrayList<>();
                         for (TransactionDto tx : event.getTransactions()) {
@@ -230,7 +439,6 @@ public class MainController {
                             }
                         }
 
-                        // Sort transactions from newest to oldest (Descending)
                         userTxList.sort((tx1, tx2) -> Integer.compare(
                                 event.getTransactions().indexOf(tx2),
                                 event.getTransactions().indexOf(tx1)
@@ -287,19 +495,17 @@ public class MainController {
     }
 
     /**
-     * Updates right panel display based on selected market event
+     * Updates right panel display based on selected market event and adds detailed LMSR info
      */
     private void onMarketEventSelected(MarketEventDto selectedEvent) {
         if (selectedEvent == null) return;
 
         this.currentlySelectedEvent = selectedEvent;
 
-        // 1. Update event title label
         if (eventNameLabel != null) {
             eventNameLabel.setText(selectedEvent.getTitle());
         }
 
-        // 2. Update transaction history
         if (participationsTableView != null && selectedEvent.getTransactions() != null) {
             participationsTableView.getItems().setAll(selectedEvent.getTransactions());
             participationsTableView.refresh();
@@ -308,21 +514,55 @@ public class MainController {
         String method = selectedEvent.getTradingMethod();
 
         if ("ORDER_BOOK".equalsIgnoreCase(method) || "OB".equalsIgnoreCase(method)) {
+            // באירוע Order Book: מציגים טבלאות מסחר ומסתירים לחלוטין את ה-LMSR ScrollPane
             if (orderBookTablesContainer != null) {
                 orderBookTablesContainer.setVisible(true);
+                orderBookTablesContainer.setManaged(true);
+            }
+            if (lmsrInfoScrollPane != null) {
+                lmsrInfoScrollPane.setVisible(false);
+                lmsrInfoScrollPane.setManaged(false);
             }
             refreshAllOrderBooksForEvent(selectedEvent);
         } else {
+            // באירוע LMSR: מסתירים טבלאות Order Book ומציגים את בלוק ה-LMSR המוגדל
             if (orderBookTablesContainer != null) {
                 orderBookTablesContainer.setVisible(false);
+                orderBookTablesContainer.setManaged(false);
             }
             clearOrderBookViews();
+
+            if (lmsrInfoScrollPane != null) {
+                lmsrInfoScrollPane.setVisible(true);
+                lmsrInfoScrollPane.setManaged(true);
+            }
+
+            if (lmsrInfoLabel != null) {
+                double b = selectedEvent.getBParameter();
+                int numOutcomes = (selectedEvent.getOutcomes() != null) ? selectedEvent.getOutcomes().size() : 0;
+                double initialSubsidy = (numOutcomes > 0) ? (b * Math.log(numOutcomes)) : 0.0;
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("LMSR Market Parameters:\n");
+                sb.append(String.format("  • Liquidity Parameter (b): %.2f\n", b));
+                sb.append(String.format("  • Initial Subsidy (b * ln(N)): %.2f\n", initialSubsidy));
+                sb.append("  • Market Maker: ").append(selectedEvent.getMarketMakerName()).append("\n\n");
+                sb.append("Outcomes & Probabilities (Current Prices):\n");
+
+                if (selectedEvent.getOutcomes() != null) {
+                    for (OutcomeDto outcome : selectedEvent.getOutcomes()) {
+                        double price = outcome.getCurrentPrice();
+                        double probabilityPercent = price * 100.0;
+
+                        sb.append(String.format("   [%s]\n   ↳ Price: $%.2f | Chance: %.2f%%\n\n",
+                                outcome.getTitle(), price, probabilityPercent));
+                    }
+                }
+                lmsrInfoLabel.setText(sb.toString().trim());
+            }
         }
     }
 
-    /**
-     * Collects and displays all orders across outcomes for the event in Order Book tables
-     */
     private void refreshAllOrderBooksForEvent(MarketEventDto event) {
         if (engine == null || event == null || event.getOutcomes() == null) return;
 
@@ -352,9 +592,6 @@ public class MainController {
         updateAggregateOrderBookStats(allBuyOrders, allSellOrders, event);
     }
 
-    /**
-     * Calculates aggregate Bid/Ask/Spread statistics for all Order Books in event
-     */
     private void updateAggregateOrderBookStats(List<OrderDto> buys, List<OrderDto> sells, MarketEventDto event) {
         Double highestBid = buys.stream().map(OrderDto::getPrice).max(Double::compareTo).orElse(null);
         Double lowestAsk = sells.stream().map(OrderDto::getPrice).min(Double::compareTo).orElse(null);
@@ -488,10 +725,11 @@ public class MainController {
     private void refreshTablesData() {
         if (engine == null) return;
 
+        // 1. Update Master Events list & MM ComboBox
         List<MarketEventDto> events = engine.getAllMarketEvents();
-        if (eventsTableView != null && events != null) {
-            eventsTableView.getItems().setAll(events);
-            eventsTableView.refresh();
+        if (events != null) {
+            masterEventsList.setAll(events);
+            populateMarketMakerFilter();
 
             if (currentlySelectedEvent != null) {
                 MarketEventDto updatedEvent = engine.getMarketEventById(currentlySelectedEvent.getId());
@@ -502,6 +740,7 @@ public class MainController {
             }
         }
 
+        // 2. Update Users Table
         List<UserDto> users = engine.getAllUsers();
         if (usersTableView != null && users != null) {
             UserDto selectedUserBefore = usersTableView.getSelectionModel().getSelectedItem();
@@ -515,19 +754,17 @@ public class MainController {
                     onUserSelected(updatedUser);
                 }
             } else if (!users.isEmpty()) {
-                // אם לא היה משתמש נבחר, בחר את הראשון בטבלה
                 usersTableView.getSelectionModel().selectFirst();
                 onUserSelected(users.get(0));
             }
         }
     }
 
-    // ===== Deposit Funds Action =====
     @FXML
     void onDepositButtonClicked(ActionEvent event) {
-        UserDto selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        UserDto selectedUser = usersTableView != null ? usersTableView.getSelectionModel().getSelectedItem() : null;
         if (selectedUser == null) {
-            showErrorAlert("Error", "Please select a user from the table to deposit funds.");
+            showErrorAlert("Error", "Please select a user from the Users table first.");
             return;
         }
 
@@ -544,7 +781,7 @@ public class MainController {
                 if (engine != null) {
                     engine.depositFunds(selectedUser.getName(), amount);
                     refreshTablesData();
-                    showInfoAlert("Success", "Successfully deposited " + amount + " to user account " + selectedUser.getName());
+                    showInfoAlert("Success", "Successfully deposited " + String.format("%.2f", amount) + " to user account " + selectedUser.getName());
                 }
             } catch (NumberFormatException e) {
                 showErrorAlert("Error", "Please enter a valid positive number for amount.");
@@ -554,7 +791,6 @@ public class MainController {
         });
     }
 
-    // ===== Execute Trade Action =====
     @FXML
     void onExecuteTradeButtonClicked(ActionEvent event) {
         MarketEventDto targetEvent = eventsTableView.getSelectionModel().getSelectedItem();
@@ -656,13 +892,11 @@ public class MainController {
                         }
 
                         String side = actionTypeComboBox.getValue();
-
                         engine.addOrder(userName, event.getId(), outcome, side, price, shares);
                     } else {
                         engine.buySharesLMSR(userName, event.getId(), outcome, shares);
                     }
 
-                    // Refresh table data and Order Book display after transaction
                     refreshTablesData();
 
                     MarketEventDto updatedEvent = engine.getMarketEventById(event.getId());
@@ -690,7 +924,6 @@ public class MainController {
         alert.showAndWait();
     }
 
-    // ===== Close / Resolve Event Action =====
     @FXML
     void onCloseEventButtonClicked(ActionEvent event) {
         MarketEventDto targetEvent = eventsTableView.getSelectionModel().getSelectedItem();
@@ -742,10 +975,7 @@ public class MainController {
 
                 try {
                     if (engine != null) {
-                        // קריאה למנוע לסגירת האירוע והערכת התוצאות
                         engine.closeMarket(eventDto.getId(), winningOutcome);
-
-                        // רענון הטבלאות ותצוגת המסך
                         refreshTablesData();
 
                         MarketEventDto updatedEvent = engine.getMarketEventById(eventDto.getId());
@@ -763,7 +993,173 @@ public class MainController {
         });
     }
 
-    // ===== Save System State Action =====
+    // =========================================================================
+    // Bonus 2: Create Market Event
+    // =========================================================================
+    @FXML
+    void onCreateEventButtonClicked(ActionEvent event) {
+        if (engine == null) {
+            showErrorAlert("Error", "Engine is not initialized.");
+            return;
+        }
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Create New Market Event");
+        dialog.setHeaderText("Define a new event dynamically");
+
+        ButtonType createButtonType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
+
+        TextField titleField = new TextField();
+        titleField.setPromptText("Event Title");
+
+        ComboBox<String> methodBox = new ComboBox<>();
+        methodBox.getItems().addAll("LMSR", "ORDER_BOOK");
+        methodBox.getSelectionModel().selectFirst();
+
+        TextField bParamField = new TextField();
+        bParamField.setPromptText("b Parameter (LMSR only)");
+
+        TextField dParamField = new TextField();
+        dParamField.setPromptText("d Parameter (Max price for Order Book)");
+
+        TextField outcomesField = new TextField();
+        outcomesField.setPromptText("Outcome1, Outcome2, ...");
+
+        ComboBox<String> marketMakerBox = new ComboBox<>();
+        if (engine.getAllUsers() != null) {
+            engine.getAllUsers().forEach(u -> marketMakerBox.getItems().add(u.getName()));
+        }
+
+        // ניהול זמינות השדות לפי שיטת המסחר שנבחרה
+        dParamField.setDisable(true); // LMSR נבחר כברירת מחדל
+        methodBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean isOrderBook = "ORDER_BOOK".equals(newVal);
+            bParamField.setDisable(isOrderBook);
+            dParamField.setDisable(!isOrderBook);
+        });
+
+        VBox content = new VBox(10);
+        content.getChildren().addAll(
+                new Label("Event Title:"), titleField,
+                new Label("Trading Method:"), methodBox,
+                new Label("b Parameter (for LMSR):"), bParamField,
+                new Label("d Parameter (Max price for Order Book):"), dParamField,
+                new Label("Outcomes (comma separated):"), outcomesField,
+                new Label("Market Maker (Must be an existing user):"), marketMakerBox
+        );
+
+        dialog.getDialogPane().setContent(content);
+
+        dialog.showAndWait().ifPresent(button -> {
+            if (button == createButtonType) {
+                try {
+                    String title = titleField.getText().trim();
+                    String method = methodBox.getValue();
+                    String outcomesStr = outcomesField.getText().trim();
+                    String mmName = marketMakerBox.getValue();
+
+                    if (title.isEmpty() || outcomesStr.isEmpty() || mmName == null) {
+                        throw new IllegalArgumentException("All required fields must be filled.");
+                    }
+
+                    double bParam = 0;
+                    double dParam = 0;
+
+                    if ("LMSR".equals(method)) {
+                        bParam = Double.parseDouble(bParamField.getText().trim());
+                        if (bParam <= 0) throw new IllegalArgumentException("b Parameter must be positive.");
+                    } else if ("ORDER_BOOK".equals(method)) {
+                        dParam = Double.parseDouble(dParamField.getText().trim());
+                        if (dParam <= 0) throw new IllegalArgumentException("d Parameter (max price) must be positive.");
+                    }
+
+                    String[] outcomesArray = outcomesStr.split(",");
+                    List<String> outcomesList = new ArrayList<>();
+                    for (String o : outcomesArray) {
+                        if (!o.trim().isEmpty()) outcomesList.add(o.trim());
+                    }
+                    if (outcomesList.size() < 2) {
+                        throw new IllegalArgumentException("Must provide at least 2 outcomes.");
+                    }
+
+                    engine.createMarketEvent(title, method, bParam, dParam, outcomesList, mmName);
+
+                    refreshTablesData();
+                    updateStatus("New event '" + title + "' created successfully.");
+                    showInfoAlert("Success", "Market Event created successfully!");
+
+                } catch (NumberFormatException e) {
+                    showErrorAlert("Invalid Input", "Numeric parameters must be valid numbers.");
+                } catch (Exception e) {
+                    showErrorAlert("Creation Error", "Failed to create event: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    // =========================================================================
+    // Bonus 3: Add New User
+    // =========================================================================
+    @FXML
+    void onAddUserButtonClicked(ActionEvent event) {
+        if (engine == null) {
+            showErrorAlert("Error", "Engine is not initialized.");
+            return;
+        }
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Add New User");
+        dialog.setHeaderText("Register a new user to the system");
+
+        ButtonType addButtonType = new ButtonType("Add User", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("Username");
+
+        TextField balanceField = new TextField();
+        balanceField.setPromptText("Initial Balance");
+
+        VBox content = new VBox(10);
+        content.getChildren().addAll(
+                new Label("Username:"), nameField,
+                new Label("Initial Balance:"), balanceField
+        );
+        dialog.getDialogPane().setContent(content);
+
+        dialog.showAndWait().ifPresent(button -> {
+            if (button == addButtonType) {
+                try {
+                    String name = nameField.getText().trim();
+                    if (name.isEmpty()) throw new IllegalArgumentException("Username cannot be empty.");
+
+                    double balance = Double.parseDouble(balanceField.getText().trim());
+                    if (balance < 0) throw new IllegalArgumentException("Balance cannot be negative.");
+
+                    engine.addNewUser(name, balance);
+
+                    refreshTablesData();
+                    updateStatus("User '" + name + "' added with $" + balance);
+
+                } catch (NumberFormatException e) {
+                    showErrorAlert("Invalid Input", "Balance must be a valid number.");
+                } catch (Exception e) {
+                    showErrorAlert("Error", "Failed to add user: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    // =========================================================================
+    // Status Bar Helper
+    // =========================================================================
+    private void updateStatus(String message) {
+        if (statusLabel != null) {
+            Platform.runLater(() -> statusLabel.setText(message));
+        }
+    }
+
     @FXML
     void onSaveStateButtonClicked(ActionEvent event) {
         if (engine == null) {
@@ -788,7 +1184,6 @@ public class MainController {
         }
     }
 
-    // ===== Load System State Action =====
     @FXML
     void onLoadStateButtonClicked(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
@@ -800,20 +1195,16 @@ public class MainController {
         File selectedFile = fileChooser.showOpenDialog(mainTabPane.getScene().getWindow());
         if (selectedFile != null) {
             try {
-                // 1. עדכון המנוע מתוך הקובץ (מתודה סטטית)
                 this.engine = EngineImpl.loadStateFromFile(selectedFile.getAbsolutePath());
 
-                // 2. איפוס מלא של ה-Selection והתצוגה הישנה
                 currentlySelectedEvent = null;
                 eventsTableView.getSelectionModel().clearSelection();
                 usersTableView.getSelectionModel().clearSelection();
                 clearOrderBookViews();
 
-                // 3. עדכון ה-UI ב-Thread של JavaFX
                 Platform.runLater(() -> {
                     refreshTablesData();
 
-                    // 4. בחירת האירוע הראשון במנוע החדש (אם קיים) כדי לאכלס את ה-Order Book
                     if (eventsTableView != null && !eventsTableView.getItems().isEmpty()) {
                         eventsTableView.getSelectionModel().selectFirst();
                         MarketEventDto firstEvent = eventsTableView.getSelectionModel().getSelectedItem();
