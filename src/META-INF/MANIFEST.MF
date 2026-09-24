@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Main-Class: com.guessmarket.ui.MainLauncher
+Class-Path: jaxb-impl.jar jaxb-jxc.jar jakarta.activation-api.jar jakart
+ a.xml.bind-api.jar angus-activation.jar javafx.base.jar javafx.controls
+ .jar javafx.fxml.jar javafx.graphics.jar javafx.media.jar javafx.swing.
+ jar javafx.web.jar javafx-swt.jar jdk.jsobject.jar jfx.incubator.input.
+ jar jfx.incubator.richtext.jar jakarta.xml.bind-api.jar jaxb-xjc.jar ja
+ xb-core.jar
+

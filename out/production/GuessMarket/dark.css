@@ -1,0 +1,21 @@
+.root {
+    -fx-base: #1e1e1e;
+    -fx-background-color: #121212;
+    -fx-text-fill: #ffffff;
+    -fx-font-family: "Consolas", monospace;
+}
+
+.button {
+    -fx-base: #2d2d2d;
+    -fx-text-fill: #00ffcc;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-border-color: #00ffcc;
+    -fx-border-radius: 4px;
+}
+
+.label {
+    -fx-text-fill: #e0e0e0;
+    -fx-font-size: 13px;
+    -fx-font-family: "Consolas", monospace;
+}
