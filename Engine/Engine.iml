@@ -72,7 +72,5 @@
         </SOURCES>
       </library>
     </orderEntry>
-    <orderEntry type="library" exported="" name="download" level="project" />
-    <orderEntry type="library" name="javafx-swt" level="project" />
   </component>
 </module>
