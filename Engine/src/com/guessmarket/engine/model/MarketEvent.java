@@ -16,8 +16,7 @@ public class MarketEvent implements Serializable {
         ORDER_BOOK
     }
 
-    private final String id;
-    private final String title;
+    private final String name;
     private final String description;
     private boolean isActive = true;
     private String winningOutcome = null;
@@ -45,11 +44,11 @@ public class MarketEvent implements Serializable {
     /**
      * בנאי מלא עבור MarketEvent (תומך גם ב-LMSR וגם ב-Order Book)
      */
-    public MarketEvent(String id, String title, String description, double feePercentage,
+    public MarketEvent(String name, String description, double feePercentage,
                        FeeType feeType, TradingMethod tradingMethod, double b,
                        double initialShares, boolean allowMint, double d) {
-        if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("Event ID cannot be null or empty.");
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Event name cannot be empty.");
         }
         if (tradingMethod == TradingMethod.LMSR && b <= 0) {
             throw new IllegalArgumentException("LMSR parameter B must be strictly positive.");
@@ -66,8 +65,7 @@ public class MarketEvent implements Serializable {
             throw new IllegalArgumentException("Fee percentage must be between 0 and 90.");
         }
 
-        this.id = id.trim();
-        this.title = title;
+        this.name = name.trim();
         this.description = description;
         this.feePercentage = feePercentage;
         this.feeType = feeType;
@@ -93,30 +91,10 @@ public class MarketEvent implements Serializable {
         this.transactions = new ArrayList<>();
     }
 
-    /**
-     * בנאי מקוצר עבור LMSR (לצורך תאימות לאחור בקוד קיים)
-     */
-    public MarketEvent(String id, String title, String description, double feePercentage,
-                       FeeType feeType, TradingMethod tradingMethod, double b) {
-        this(id, title, description, feePercentage, feeType, tradingMethod, b, 0.0, false, 0.0);
-    }
-
-    /**
-     * בנאי מקוצר שברירת המחדל שלו היא LMSR
-     */
-    public MarketEvent(String id, String title, String description, double feePercentage,
-                       FeeType feeType, double b) {
-        this(id, title, description, feePercentage, feeType, TradingMethod.LMSR, b, 0.0, false, 0.0);
-    }
-
     // --- Getters & Setters ---
 
-    public String getId() {
-        return id;
-    }
-
-    public String getTitle() {
-        return title;
+    public String getName() {
+        return name;
     }
 
     public String getDescription() {

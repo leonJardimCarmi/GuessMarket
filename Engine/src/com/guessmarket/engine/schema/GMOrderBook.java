@@ -86,10 +86,11 @@ public class GMOrderBook {
 
     /**
      * Gets the value of the allowMint property.
-     *
-     * @return possible object is
-     * {@link String }
-     *
+     * 
+     * @return
+     *     possible object is
+     *     {@link String }
+     *     
      */
     public String getAllowMint() {
         return allowMint;
@@ -105,10 +106,6 @@ public class GMOrderBook {
      */
     public void setAllowMint(String value) {
         this.allowMint = value;
-    }
-
-    public boolean isAllowMint() {
-        return "true".equalsIgnoreCase(this.allowMint);
     }
 
 }

@@ -32,17 +32,17 @@ public class User implements Serializable {
         return account;
     }
 
-    public double getSharesCount(String eventId, String outcomeTitle) {
+    public double getSharesCount(String eventName, String outcomeTitle) {
         return userHoldings
-                .getOrDefault(eventId, new HashMap<>())
+                .getOrDefault(eventName, new HashMap<>())
                 .getOrDefault(outcomeTitle, 0.0);
     }
 
-    public void addShares(String eventId, String outcomeTitle, double shares) {
+    public void addShares(String eventName, String outcomeTitle, double shares) {
         if (shares <= 0) {
             throw new IllegalArgumentException("Shares amount to add must be positive.");
         }
-        userHoldings.computeIfAbsent(eventId, k -> new HashMap<>()).merge(outcomeTitle, shares, Double::sum);
+        userHoldings.computeIfAbsent(eventName, k -> new HashMap<>()).merge(outcomeTitle, shares, Double::sum);
     }
 
     @Override
@@ -58,17 +58,17 @@ public class User implements Serializable {
         return Objects.hash(name.toLowerCase());
     }
 
-    public void deductShares(String eventId, String outcomeTitle, double shares) {
+    public void deductShares(String eventName, String outcomeTitle, double shares) {
         if (shares <= 0) {
             throw new IllegalArgumentException("Shares amount to deduct must be positive.");
         }
 
-        double currentShares = getSharesCount(eventId, outcomeTitle);
+        double currentShares = getSharesCount(eventName, outcomeTitle);
         if (currentShares < shares) {
             throw new IllegalStateException("Insufficient shares to deduct. Available: " + currentShares + ", Requested: " + shares);
         }
 
-        Map<String, Double> eventHoldings = userHoldings.get(eventId);
+        Map<String, Double> eventHoldings = userHoldings.get(eventName);
         double remainingShares = currentShares - shares;
 
         if (remainingShares > 0) {
@@ -76,7 +76,7 @@ public class User implements Serializable {
         } else {
             eventHoldings.remove(outcomeTitle);
             if (eventHoldings.isEmpty()) {
-                userHoldings.remove(eventId);
+                userHoldings.remove(eventName);
             }
         }
     }

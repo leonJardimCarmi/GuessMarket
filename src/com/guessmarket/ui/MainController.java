@@ -503,7 +503,7 @@ public class MainController {
         this.currentlySelectedEvent = selectedEvent;
 
         if (eventNameLabel != null) {
-            eventNameLabel.setText(selectedEvent.getTitle());
+            eventNameLabel.setText(selectedEvent.getName());
         }
 
         if (participationsTableView != null && selectedEvent.getTransactions() != null) {
@@ -813,7 +813,7 @@ public class MainController {
 
     private void showTradeDialog(MarketEventDto event) {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Execute Trade - " + event.getTitle());
+        dialog.setTitle("Execute Trade - " + event.getName());
         dialog.setHeaderText("Trading Method: " + event.getTradingMethod());
 
         ButtonType tradeButtonType = new ButtonType("Submit Trade", ButtonBar.ButtonData.OK_DONE);
@@ -946,7 +946,7 @@ public class MainController {
 
     private void showCloseEventDialog(MarketEventDto eventDto) {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Close & Resolve Event - " + eventDto.getTitle());
+        dialog.setTitle("Close & Resolve Event - " + eventDto.getName());
         dialog.setHeaderText("Select the winning outcome for event ID: " + eventDto.getId());
 
         ButtonType confirmButtonType = new ButtonType("Resolve Event", ButtonBar.ButtonData.OK_DONE);
@@ -984,7 +984,7 @@ public class MainController {
                             onMarketEventSelected(updatedEvent);
                         }
 
-                        showInfoAlert("Event Closed", "Event '" + eventDto.getTitle() + "' has been successfully resolved with winning outcome: " + winningOutcome);
+                        showInfoAlert("Event Closed", "Event '" + eventDto.getName() + "' has been successfully resolved with winning outcome: " + winningOutcome);
                     }
                 } catch (Exception e) {
                     showErrorAlert("Close Event Error", e.getMessage());

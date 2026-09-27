@@ -79,7 +79,7 @@ public class ConsoleUI {
         System.out.println("\nSelect a market event:");
         for (int i = 0; i < events_list.size(); i++) {
             MarketEventDto event = events_list.get(i);
-            System.out.printf("  %d. [ID: %s] %s\n", (i + 1), event.getId(), event.getTitle());
+            System.out.printf("  %d. [ID: %s] %s\n", (i + 1), event.getId(), event.getName());
         }
 
         System.out.print("Enter event number (1-" + events_list.size() + "): ");
@@ -165,7 +165,7 @@ public class ConsoleUI {
         for (MarketEventDto event : events) {
             System.out.println("--------------------------------------------------");
             System.out.println("Event ID: " + event.getId());
-            System.out.println("Title: " + event.getTitle());
+            System.out.println("Title: " + event.getName());
             System.out.println("Description: " + event.getDescription());
             System.out.println("Trading Method: " + event.getTradingMethod());
             System.out.println("Market Maker: " + event.getMarketMakerName() + "\nEvent Balance: " + String.format("%.2f", event.getEventBalance()));
@@ -207,7 +207,7 @@ public class ConsoleUI {
     private void printSingleEventDetails(MarketEventDto event) {
         System.out.println("--------------------------------------------------");
         System.out.println("Event ID: " + event.getId());
-        System.out.println("Title: " + event.getTitle());
+        System.out.println("Title: " + event.getName());
         System.out.println("Description: " + event.getDescription());
         System.out.println("Trading Method: " + event.getTradingMethod());
         System.out.println("Market Maker: " + event.getMarketMakerName() + " (Event Balance: " + String.format("%.2f", event.getEventBalance()) + ")");
@@ -438,7 +438,7 @@ public class ConsoleUI {
         }
 
         List<OutcomeDto> outcomes = event.getOutcomes();
-        System.out.println("\nSelect the winning outcome for event '" + event.getTitle() + "':");
+        System.out.println("\nSelect the winning outcome for event '" + event.getName() + "':");
         for (int i = 0; i < outcomes.size(); i++) {
             System.out.printf("  %d. %s\n", (i + 1), outcomes.get(i).getTitle());
         }

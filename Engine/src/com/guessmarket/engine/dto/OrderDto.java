@@ -7,7 +7,7 @@ public class OrderDto implements Serializable {
 
     private final String id;
     private final String userName;
-    private final String eventId;
+    private final String eventName;
     private final String outcomeTitle;
     private final String side;       // "BUY" / "SELL"
     private final double price;
@@ -15,12 +15,12 @@ public class OrderDto implements Serializable {
     private final double originalShares;
     private final long timestamp;
 
-    public OrderDto(String id, String userName, String eventId, String outcomeTitle,
+    public OrderDto(String id, String userName, String eventName, String outcomeTitle,
                     String side, double price,
                     double remainingShares, double originalShares, long timestamp) {
         this.id = id;
         this.userName = userName;
-        this.eventId = eventId;
+        this.eventName = eventName;
         this.outcomeTitle = outcomeTitle;
         this.side = side;
         this.price = price;
@@ -31,7 +31,7 @@ public class OrderDto implements Serializable {
 
     public String getId() { return id; }
     public String getUserName() { return userName; }
-    public String getEventId() { return eventId; }
+    public String getEventName() { return eventName; }
     public String getOutcomeTitle() { return outcomeTitle; }
     public String getSide() { return side; }
     public double getPrice() { return price; }

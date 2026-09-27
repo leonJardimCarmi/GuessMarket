@@ -7,8 +7,7 @@ import java.util.List;
 public class MarketEventDto implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private final String id;
-    private final String title;
+    private final String name;
     private final String description;
     private final boolean isActive;
     private final String winningOutcome;
@@ -26,13 +25,12 @@ public class MarketEventDto implements Serializable {
     private final double b;
     private final double d;
 
-    public MarketEventDto(String id, String title, String description, boolean isActive,
+    public MarketEventDto(String name, String description, boolean isActive,
                           String winningOutcome, String marketMakerName, double eventBalance,
                           double totalFeesCollected, double feePercentage, String feeType,
                           String tradingMethod, List<OutcomeDto> outcomes,
                           List<TransactionDto> transactions, double B, double D) {
-        this.id = id;
-        this.title = title;
+        this.name = name;
         this.description = description;
         this.isActive = isActive;
         this.winningOutcome = winningOutcome;
@@ -48,12 +46,8 @@ public class MarketEventDto implements Serializable {
         this.d = D;
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public String getTitle() {
-        return title;
+    public String getName() {
+        return name;
     }
 
     public String getDescription() {

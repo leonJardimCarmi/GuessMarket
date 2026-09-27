@@ -7,7 +7,7 @@ public class Order implements Serializable {
 
     private final String id;
     private final String userName;
-    private final String eventId;
+    private final String eventName;
     private final String outcomeTitle;
     private final OrderSide side;         // BUY / SELL
     private final double price;
@@ -15,11 +15,11 @@ public class Order implements Serializable {
     private final double originalSharesCount;
     private final long timestamp;
 
-    public Order(String id, String userName, String eventId, String outcomeTitle,
+    public Order(String id, String userName, String eventName, String outcomeTitle,
                  OrderSide side, double price, double sharesCount) {
         this.id = id;
         this.userName = userName;
-        this.eventId = eventId;
+        this.eventName = eventName;
         this.outcomeTitle = outcomeTitle;
         this.side = side;
         this.price = price;
@@ -30,7 +30,7 @@ public class Order implements Serializable {
 
     public String getId() { return id; }
     public String getUserName() { return userName; }
-    public String getEventId() { return eventId; }
+    public String getEventName() { return eventName; }
     public String getOutcomeTitle() { return outcomeTitle; }
     public OrderSide getSide() { return side; }
     public double getPrice() { return price; }
