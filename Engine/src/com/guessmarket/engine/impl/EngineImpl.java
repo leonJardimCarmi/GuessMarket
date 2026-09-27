@@ -4,15 +4,19 @@ import com.guessmarket.engine.api.EngineApi;
 import com.guessmarket.engine.dto.*;
 import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.schema.*;
-
-import java.io.*;
-import java.util.*;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Unmarshaller;
 
+import java.io.*;
+import java.util.*;
+
 public class EngineImpl implements EngineApi, Serializable {
     private static final long serialVersionUID = 1L;
+
+    private static final int REQUIRED_OPTIONS_COUNT = 2;
+    private static final String COMMISSION_ON_CLOSE = "on-close";
+    private static final String COMMISSION_ON_PURCHASE = "on-purchase";
 
     private final Map<String, MarketEvent> eventsMap = new HashMap<>();
     private final Map<String, User> usersMap = new HashMap<>();
@@ -97,141 +101,6 @@ public class EngineImpl implements EngineApi, Serializable {
         );
     }
 
-    /*@Override
-    public void loadMarketDataFromXml(String filePath) throws Exception {
-        File file = new File(filePath);
-        if (!filePath.toLowerCase().endsWith(".xml") || !file.exists()) {
-            throw new IllegalArgumentException("Invalid XML file path: " + filePath);
-        }
-
-        JAXBContext jaxbContext = JAXBContext.newInstance(GuessMarket.class);
-        Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
-        GuessMarket guessMarket = (GuessMarket) unmarshaller.unmarshal(file);
-
-        Map<String, MarketEvent> tempEventsMap = new HashMap<>();
-        Map<String, User> tempUsersMap = new HashMap<>();
-
-        if (guessMarket.getGMEvents() != null && guessMarket.getGMEvents().getGMEvent() != null) {
-            for (GMEvent xmlEvent : guessMarket.getGMEvents().getGMEvent()) {
-                String id = String.valueOf(xmlEvent.getId());
-                if (tempEventsMap.containsKey(id)) {
-                    throw new IllegalArgumentException("Duplicate event ID: " + id);
-                }
-
-                String title = (xmlEvent.getName() != null) ? String.join(" ", xmlEvent.getName()) : "";
-                String description = xmlEvent.getDescription();
-
-                double feePercentage = 0.0;
-                MarketEvent.FeeType feeType = MarketEvent.FeeType.AT_PURCHASE;
-                if (xmlEvent.getCommission() != null) {
-                    feePercentage = xmlEvent.getCommission().getValue();
-                    if ("on-resolution".equalsIgnoreCase(xmlEvent.getCommission().getType())) {
-                        feeType = MarketEvent.FeeType.AT_RESOLUTION;
-                    }
-                }
-
-                double b = 0.0;
-                double initialShares = 0.0;
-                boolean allowMint = false;
-                double d = 0.0;
-
-                MarketEvent.TradingMethod tradingMethod = MarketEvent.TradingMethod.LMSR;
-                if (xmlEvent.getGMMethod() != null) {
-                    if (xmlEvent.getGMMethod().getGMLMSR() != null) {
-                        b = xmlEvent.getGMMethod().getGMLMSR().getB();
-                        tradingMethod = MarketEvent.TradingMethod.LMSR;
-                    } else if (xmlEvent.getGMMethod().getGMOrderBook() != null) {
-                        tradingMethod = MarketEvent.TradingMethod.ORDER_BOOK;
-
-                        GMOrderBook ob = xmlEvent.getGMMethod().getGMOrderBook();
-                        initialShares = ob.getInitial();
-                        allowMint = ob.isAllowMint();
-                        d = ob.getD();
-                    }
-                }
-
-                MarketEvent event = new MarketEvent(id, title, description, feePercentage, feeType, tradingMethod, b, initialShares, allowMint, d);
-
-                if (xmlEvent.getGMOptions() != null && xmlEvent.getGMOptions().getGMOption() != null) {
-                    for (String optionTitle : xmlEvent.getGMOptions().getGMOption()) {
-                        event.addOutcome(new Outcome(optionTitle));
-                    }
-                }
-
-                if (event.getOutcomes().size() < 2) {
-                    throw new IllegalArgumentException("Event " + id + " must have at least 2 outcomes.");
-                }
-
-                tempEventsMap.put(id, event);
-            }
-        }
-
-        if (guessMarket.getGMUsers() != null && guessMarket.getGMUsers().getGMUser() != null) {
-            for (GMUser xmlUser : guessMarket.getGMUsers().getGMUser()) {
-                String userName = xmlUser.getName();
-                double initialCash = xmlUser.getInitialCash();
-
-                if (tempUsersMap.containsKey(userName.toLowerCase())) {
-                    throw new IllegalArgumentException("Duplicate user name: " + userName);
-                }
-                if (initialCash < 0) {
-                    throw new IllegalArgumentException("Negative initial cash for user: " + userName);
-                }
-
-                User user = new User(userName, initialCash);
-                tempUsersMap.put(userName.toLowerCase(), user);
-
-                if (xmlUser.getGMMarketMaker() != null && xmlUser.getGMMarketMaker().getEvent() != null) {
-                    for (Event mmEvent : xmlUser.getGMMarketMaker().getEvent()) {
-                        String eventId = String.valueOf(mmEvent.getId());
-                        MarketEvent targetEvent = tempEventsMap.get(eventId);
-
-                        if (targetEvent == null) {
-                            throw new IllegalArgumentException("Market Maker " + userName + " referenced non-existing event ID: " + eventId);
-                        }
-                        if (targetEvent.getMarketMakerName() != null) {
-                            throw new IllegalArgumentException("Event " + eventId + " already has a Market Maker assigned!");
-                        }
-
-                        targetEvent.setMarketMakerName(userName);
-
-                        if (targetEvent.getTradingMethod() == MarketEvent.TradingMethod.ORDER_BOOK) {
-                            double initialShares = targetEvent.getInitialShares();
-                            double d = targetEvent.getD();
-
-                            double totalInitialCost = initialShares * d;
-
-                            if (user.getBalance() < totalInitialCost) {
-                                throw new IllegalArgumentException("Market Maker " + userName +
-                                        " has insufficient cash (" + user.getBalance() + ") to fund initial shares cost (" + totalInitialCost + ") for event " + eventId);
-                            }
-
-                            user.withdraw(totalInitialCost);
-                            targetEvent.addMarketMakerFund(totalInitialCost);
-
-                            for (Outcome outcome : targetEvent.getOutcomes()) {
-                                user.addShares(targetEvent.getId(), outcome.getTitle(), initialShares);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        for (MarketEvent event : tempEventsMap.values()) {
-            if (event.getMarketMakerName() == null) {
-                throw new IllegalArgumentException("Event ID " + event.getId() + " has no Market Maker assigned.");
-            }
-        }
-
-        this.eventsMap.clear();
-        this.eventsMap.putAll(tempEventsMap);
-
-        this.usersMap.clear();
-        this.usersMap.putAll(tempUsersMap);
-    }
-*/
-
     @Override
     public List<String> loadEventsFromXml(InputStream xmlContent, String uploaderName) {
         User uploader = getUserByNameInternal(uploaderName);
@@ -243,10 +112,17 @@ public class EngineImpl implements EngineApi, Serializable {
         if (guessMarket.getGMEvents() == null || guessMarket.getGMEvents().getGMEvent().isEmpty()) {
             throw new IllegalArgumentException("The file contains no events.");
         }
-        // TODO: build and add events (steps 2-4)
-        return List.of();
-    }
+        List<MarketEvent> newEvents = buildAllEvents(guessMarket.getGMEvents().getGMEvent());
+        List<String> loadedNames = new ArrayList<>();
 
+        for (MarketEvent event : newEvents) {
+            event.setMarketMakerName(uploader.getName());
+            eventsMap.put(toEventKey(event.getName()), event);
+            loadedNames.add(event.getName());
+        }
+
+        return loadedNames;
+    }
 
     private GuessMarket parseXml(InputStream xmlContent) {
         try {
@@ -256,6 +132,103 @@ public class EngineImpl implements EngineApi, Serializable {
         } catch (JAXBException e) {
             String reason = (e.getLinkedException() != null) ? e.getLinkedException().getMessage() : e.getMessage();
             throw new IllegalArgumentException("The file is not a valid Guess Market XML file: " + reason, e);
+        }
+    }
+
+    private List<MarketEvent> buildAllEvents(List<GMEvent> xmlEvents) {
+        List<MarketEvent> newEvents = new ArrayList<>();
+        Set<String> namesInFile = new HashSet<>();
+
+        for (GMEvent xmlEvent : xmlEvents) {
+            MarketEvent event;
+            try {
+                event = buildEvent(xmlEvent);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Event '" + xmlEvent.getName() + "': " + e.getMessage(), e);
+            }
+
+            String key = toEventKey(event.getName());
+            if (!namesInFile.add(key)) {
+                throw new IllegalArgumentException("Event name '" + event.getName() + "' appears more than once in the file.");
+            }
+            if (eventsMap.containsKey(key)) {
+                throw new IllegalArgumentException("An event named '" + event.getName() + "' already exists in the system.");
+            }
+            newEvents.add(event);
+        }
+        return newEvents;
+    }
+
+    private MarketEvent buildEvent(GMEvent xmlEvent) {
+        GMMethod method = xmlEvent.getGMMethod();
+        if (method == null || (method.getGMLMSR() == null && method.getGMOrderBook() == null)) {
+            throw new IllegalArgumentException("No trading method defined.");
+        }
+        if (xmlEvent.getCommission() == null) {
+            throw new IllegalArgumentException("No commission defined.");
+        }
+
+        MarketEvent.TradingMethod tradingMethod;
+        double b = 0.0;
+        double initialShares = 0.0;
+        double d = 0.0;
+        boolean allowMint = false;
+
+        if (method.getGMLMSR() != null) {
+            tradingMethod = MarketEvent.TradingMethod.LMSR;
+            b = method.getGMLMSR().getB();
+        } else {
+            GMOrderBook orderBook = method.getGMOrderBook();
+            tradingMethod = MarketEvent.TradingMethod.ORDER_BOOK;
+            initialShares = orderBook.getInitial();
+            d = orderBook.getD();
+            allowMint = "true".equalsIgnoreCase(orderBook.getAllowMint());
+        }
+
+        MarketEvent event = new MarketEvent(
+                xmlEvent.getName(),
+                xmlEvent.getDescription(),
+                xmlEvent.getCommission().getValue(),
+                parseFeeType(xmlEvent.getCommission().getType()),
+                tradingMethod,
+                b,
+                initialShares,
+                allowMint,
+                d
+        );
+
+        addOutcomes(event, xmlEvent.getGMOptions());
+        return event;
+    }
+
+    private MarketEvent.FeeType parseFeeType(String type) {
+        String normalizedType = (type == null) ? "" : type.trim();
+        if (normalizedType.equalsIgnoreCase(COMMISSION_ON_CLOSE)) {
+            return MarketEvent.FeeType.AT_RESOLUTION;
+        }
+        if (normalizedType.equalsIgnoreCase(COMMISSION_ON_PURCHASE)) {
+            return MarketEvent.FeeType.AT_PURCHASE;
+        }
+        throw new IllegalArgumentException("Unknown commission type: '" + type + "'. Expected '"
+                + COMMISSION_ON_CLOSE + "' or '" + COMMISSION_ON_PURCHASE + "'.");
+    }
+
+    private void addOutcomes(MarketEvent event, GMOptions xmlOptions) {
+        List<String> optionTitles = (xmlOptions == null) ? List.of() : xmlOptions.getGMOption();
+        if (optionTitles.size() != REQUIRED_OPTIONS_COUNT) {
+            throw new IllegalArgumentException("Event must have exactly " + REQUIRED_OPTIONS_COUNT
+                    + " options, found " + optionTitles.size() + ".");
+        }
+
+        for (String title : optionTitles) {
+            if (title == null || title.isBlank()) {
+                throw new IllegalArgumentException("Option name cannot be empty.");
+            }
+            String trimmedTitle = title.trim();
+            if (event.getOutcomeByTitle(trimmedTitle) != null) {
+                throw new IllegalArgumentException("Duplicate option '" + trimmedTitle + "'.");
+            }
+            event.addOutcome(new Outcome(trimmedTitle));
         }
     }
 
@@ -547,7 +520,11 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     private MarketEvent getEventByNameInternal(String name) {
-        return (name != null) ? eventsMap.get(name.trim().toLowerCase()) : null;
+        return (name != null) ? eventsMap.get(toEventKey(name)) : null;
+    }
+
+    private static String toEventKey(String eventName) {
+        return eventName.trim().toLowerCase();
     }
 
     public void addNewUser(String name, double balance) {
