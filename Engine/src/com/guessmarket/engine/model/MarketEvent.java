@@ -204,8 +204,4 @@ public class MarketEvent implements Serializable {
     public synchronized OrderBook getOrderBook(String outcomeTitle) {
         return orderBooks.get(outcomeTitle);
     }
-
-    public void addMarketMakerFund(double initialShares) {
-        this.getEventAccount().deposit(initialShares);
-    }
 }

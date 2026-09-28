@@ -1,5 +1,6 @@
 package com.guessmarket.engine.api;
 
+import com.guessmarket.engine.dto.AccountEntryDto;
 import com.guessmarket.engine.dto.MarketEventDto;
 import com.guessmarket.engine.dto.OrderBookDto;
 import com.guessmarket.engine.dto.UserDto;
@@ -19,6 +20,8 @@ public interface EngineApi extends Serializable {
     List<UserDto> getAllUsers();
 
     UserDto getUserByName(String name);
+
+    List<AccountEntryDto> getAccountEntries(String userName, int fromIndex);
 
     void buySharesLMSR(String userName, String eventName, String outcomeTitle, double sharesToBuy);
 

@@ -263,6 +263,26 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
+    public List<AccountEntryDto> getAccountEntries(String userName, int fromIndex) {
+        User user = getUserByNameInternal(userName);
+        if (user == null) {
+            throw new IllegalArgumentException("User '" + userName + "' was not found.");
+        }
+        if (fromIndex < 0) {
+            throw new IllegalArgumentException("fromIndex cannot be negative.");
+        }
+
+        List<AccountEntry> entries = user.getAccount().getEntries();
+        if (fromIndex >= entries.size()) {
+            return List.of();
+        }
+        return entries.subList(fromIndex, entries.size()).stream()
+                .map(entry -> new AccountEntryDto(entry.getDescription(), entry.getAmount(),
+                        entry.getBalanceAfter(), entry.getTimestamp()))
+                .toList();
+    }
+
+    @Override
     public void depositFunds(String userName, double amount) {
         if (amount <= 0) {
             throw new IllegalArgumentException("Deposit amount must be positive.");
@@ -271,7 +291,7 @@ public class EngineImpl implements EngineApi, Serializable {
         if (user == null) {
             throw new IllegalArgumentException("User '" + userName + "' was not found.");
         }
-        user.getAccount().deposit(amount);
+        user.getAccount().deposit(amount, "Deposit");
     }
 
     @Override
@@ -309,9 +329,11 @@ public class EngineImpl implements EngineApi, Serializable {
             throw new IllegalStateException("Insufficient funds. Required: " + totalCost + ", Available: " + user.getAccount().getBalance());
         }
 
-        user.getAccount().withdraw(totalCost);
-
-        event.getEventAccount().deposit(totalCost);
+        String purchase = formatAmount(sharesToBuy) + " '" + outcome.getTitle() + "' shares";
+        user.getAccount().withdraw(totalCost,
+                "Bought " + purchase + " in '" + event.getName() + "'" + feeSuffix(feePaid));
+        event.getEventAccount().deposit(totalCost,
+                "'" + user.getName() + "' bought " + purchase + feeSuffix(feePaid));
         if (feePaid > 0) {
             event.addFeeCollected(feePaid);
         }
@@ -351,8 +373,12 @@ public class EngineImpl implements EngineApi, Serializable {
 
                 double netPayout = grossPayout - fee;
 
-                event.getEventAccount().withdraw(grossPayout);
-                user.getAccount().deposit(netPayout);
+                String winnings = formatAmount(winningShares) + " winning '" + winningOutcome.getTitle() + "' shares";
+                event.getEventAccount().withdraw(grossPayout,
+                        "Payout to '" + user.getName() + "' for " + winnings);
+                user.getAccount().deposit(netPayout,
+                        "Payout for " + winnings + " in '" + event.getName() + "'"
+                                + ((fee > 0) ? " (fee " + formatAmount(fee) + " deducted)" : ""));
 
                 if (fee > 0) {
                     event.addFeeCollected(fee);
@@ -365,8 +391,10 @@ public class EngineImpl implements EngineApi, Serializable {
         if (mmUser != null) {
             double remainingBalance = event.getEventAccount().getBalance();
             if (remainingBalance > 0) {
-                event.getEventAccount().withdraw(remainingBalance);
-                mmUser.getAccount().deposit(remainingBalance);
+                event.getEventAccount().withdraw(remainingBalance,
+                        "Remaining balance returned to market maker '" + mmUser.getName() + "'");
+                mmUser.getAccount().deposit(remainingBalance,
+                        "Remaining balance of closed event '" + event.getName() + "'");
             }
         }
     }
@@ -432,19 +460,21 @@ public class EngineImpl implements EngineApi, Serializable {
 
             double tradeAmount = trade.getPrice() * trade.getShares();
             double fee = calculateTradeFee(event, tradeAmount);
+            String traded = formatAmount(trade.getShares()) + " '" + outcome.getTitle() + "' shares in '"
+                    + event.getName() + "' at " + formatAmount(trade.getPrice());
 
             if (buyer != null) {
-                buyer.getAccount().withdraw(tradeAmount + fee);
+                buyer.getAccount().withdraw(tradeAmount + fee, "Bought " + traded + feeSuffix(fee));
                 buyer.addShares(event.getName(), outcome.getTitle(), trade.getShares());
             }
 
             if (seller != null) {
-                seller.getAccount().deposit(tradeAmount);
+                seller.getAccount().deposit(tradeAmount, "Sold " + traded);
                 seller.deductShares(event.getName(), outcome.getTitle(), trade.getShares());
             }
 
             if (fee > 0) {
-                event.getEventAccount().deposit(fee);
+                event.getEventAccount().deposit(fee, "Fee from '" + trade.getBuyerName() + "' on trade of " + traded);
                 event.addFeeCollected(fee);
             }
 
@@ -525,6 +555,14 @@ public class EngineImpl implements EngineApi, Serializable {
 
     private static String toEventKey(String eventName) {
         return eventName.trim().toLowerCase();
+    }
+
+    private static String formatAmount(double value) {
+        return String.format(Locale.US, "%.2f", value);
+    }
+
+    private static String feeSuffix(double fee) {
+        return (fee > 0) ? " (incl. fee " + formatAmount(fee) + ")" : "";
     }
 
     public void addNewUser(String name, double balance) {

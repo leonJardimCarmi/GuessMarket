@@ -84,8 +84,4 @@ public class User implements Serializable {
     public double getBalance() {
         return this.account.getBalance();
     }
-
-    public void withdraw(double initialShares) {
-        this.getAccount().withdraw(initialShares);
-    }
 }
