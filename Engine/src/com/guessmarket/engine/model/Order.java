@@ -5,7 +5,7 @@ import java.io.Serializable;
 public class Order implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private final String id;
+    private final long sequenceNumber;
     private final String userName;
     private final String eventName;
     private final String outcomeTitle;
@@ -15,9 +15,9 @@ public class Order implements Serializable {
     private final double originalSharesCount;
     private final long timestamp;
 
-    public Order(String id, String userName, String eventName, String outcomeTitle,
+    public Order(long sequenceNumber, String userName, String eventName, String outcomeTitle,
                  OrderSide side, double price, double sharesCount) {
-        this.id = id;
+        this.sequenceNumber = sequenceNumber;
         this.userName = userName;
         this.eventName = eventName;
         this.outcomeTitle = outcomeTitle;
@@ -28,7 +28,8 @@ public class Order implements Serializable {
         this.timestamp = System.currentTimeMillis();
     }
 
-    public String getId() { return id; }
+    public String getId() { return "ORD-" + sequenceNumber; }
+    public long getSequenceNumber() { return sequenceNumber; }
     public String getUserName() { return userName; }
     public String getEventName() { return eventName; }
     public String getOutcomeTitle() { return outcomeTitle; }

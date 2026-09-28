@@ -180,6 +180,16 @@ public class MarketEvent implements Serializable {
         return null;
     }
 
+    // Events are binary, so every outcome has exactly one opposite outcome.
+    public Outcome getOtherOutcome(Outcome outcome) {
+        for (Outcome candidate : outcomes) {
+            if (candidate != outcome) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Event '" + name + "' has no outcome other than '" + outcome.getTitle() + "'.");
+    }
+
     public void addTransaction(Transaction transaction) {
         if (transaction != null) {
             this.transactions.add(transaction);

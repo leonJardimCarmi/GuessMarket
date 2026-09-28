@@ -18,9 +18,11 @@ public class EngineImpl implements EngineApi, Serializable {
     private static final String COMMISSION_ON_CLOSE = "on-close";
     private static final String COMMISSION_ON_PURCHASE = "on-purchase";
     private static final double EPSILON = 1e-9;
+    private static final double PRICE_TICK = 0.01;
 
     private final Map<String, MarketEvent> eventsMap = new HashMap<>();
     private final Map<String, User> usersMap = new HashMap<>();
+    private long nextOrderNumber = 1;
 
     private MarketEventDto createDtoEvent(MarketEvent event) {
         List<OutcomeDto> outcomeDtos = new ArrayList<>();
@@ -29,12 +31,10 @@ public class EngineImpl implements EngineApi, Serializable {
             if (event.getTradingMethod() == MarketEvent.TradingMethod.LMSR) {
                 currentPrice = LmsrCalculator.calculatePrice(event.getOutcomes(), outcome.getTitle(), event.getB());
             } else if (event.getTradingMethod() == MarketEvent.TradingMethod.ORDER_BOOK) {
-                // Determine current price based on the last transaction price for this outcome
-                currentPrice = event.getTransactions().stream()
-                        .filter(tx -> tx.getOutcomeTitle().equalsIgnoreCase(outcome.getTitle()))
-                        .reduce((first, second) -> second) // Get last transaction
-                        .map(tx -> tx.getShareAmount() > 0 ? (tx.getTotalPaid() / tx.getShareAmount()) : 0.0)
-                        .orElse(0.0);
+                OrderBook orderBook = event.getOrderBook(outcome.getTitle());
+                if (orderBook != null && orderBook.getLastTradePrice() != null) {
+                    currentPrice = orderBook.getLastTradePrice();
+                }
             }
             outcomeDtos.add(new OutcomeDto(outcome.getTitle(), outcome.getSharesBought(), currentPrice));
         }
@@ -85,7 +85,7 @@ public class EngineImpl implements EngineApi, Serializable {
                 holdings.put(event.getName(), eventHoldings);
             }
         }
-        return new UserDto(user.getName(), user.getAccount().getBalance(), holdings);
+        return new UserDto(user.getName(), user.getAccount().getBalance(), user.getAccount().getReserved(), holdings);
     }
 
     private OrderDto toOrderDto(Order order) {
@@ -306,8 +306,10 @@ public class EngineImpl implements EngineApi, Serializable {
 
         double totalCost = rawCost + feePaid;
 
-        if (user.getAccount().getBalance() < totalCost) {
-            throw new IllegalStateException("Insufficient funds. Required: " + totalCost + ", Available: " + user.getAccount().getBalance());
+        double available = user.getAccount().getAvailableBalance();
+        if (available < totalCost) {
+            throw new IllegalStateException("This purchase costs " + formatAmount(totalCost) + ", but only "
+                    + formatAmount(available) + " is available" + reservedSuffix(user) + ".");
         }
 
         String purchase = formatAmount(sharesToBuy) + " '" + outcome.getTitle() + "' shares";
@@ -332,9 +334,11 @@ public class EngineImpl implements EngineApi, Serializable {
         }
 
         double openingCost = calculateOpeningCost(event);
-        if (marketMaker.getBalance() < openingCost) {
+        double available = marketMaker.getAccount().getAvailableBalance();
+        if (available < openingCost) {
             throw new IllegalStateException("Opening '" + event.getName() + "' costs " + formatAmount(openingCost)
-                    + ", but market maker '" + marketMaker.getName() + "' has only " + formatAmount(marketMaker.getBalance()) + ".");
+                    + ", but market maker '" + marketMaker.getName() + "' has only " + formatAmount(available)
+                    + " available" + reservedSuffix(marketMaker) + ".");
         }
 
         event.open();
@@ -382,6 +386,7 @@ public class EngineImpl implements EngineApi, Serializable {
         }
 
         event.close(winningOutcome.getTitle());
+        cancelOpenOrders(event);
         payWinners(event, winningOutcome);
         returnRemainingBalance(event, marketMaker);
     }
@@ -439,62 +444,113 @@ public class EngineImpl implements EngineApi, Serializable {
         }
         Outcome outcome = requireOutcome(event, outcomeTitle);
 
-        if (price > event.getD()) {
-            throw new IllegalArgumentException("Price (" + price + ") exceeds maximum allowed price d (" + event.getD() + ") for this event.");
+        double maxPrice = event.getD() - PRICE_TICK;
+        if (price > maxPrice + EPSILON) {
+            throw new IllegalArgumentException("Price " + formatAmount(price) + " is too high: the maximum price in '"
+                    + event.getName() + "' is " + formatAmount(maxPrice) + " (d - " + formatAmount(PRICE_TICK) + ").");
         }
 
-        OrderSide side = OrderSide.valueOf(sideStr.toUpperCase());
-
-        double maxTradeCost = price * shares;
-        double potentialFee = calculateTradeFee(event, maxTradeCost);
-
+        OrderSide side = parseOrderSide(sideStr);
         if (side == OrderSide.BUY) {
-            if (user.getAccount().getBalance() < (maxTradeCost + potentialFee)) {
-                throw new IllegalStateException("Insufficient balance to place buy order.");
-            }
-        } else { // SELL
-            double ownedShares = user.getSharesCount(event.getName(), outcome.getTitle());
-            if (ownedShares < shares) {
-                throw new IllegalStateException("Insufficient shares to place sell order.");
-            }
+            reserveFundsForBuyOrder(event, user, price, shares);
+        } else {
+            requireAvailableShares(event, outcome, user, shares);
         }
 
-        String orderId = "ORD-" + System.currentTimeMillis();
-        Order order = new Order(orderId, user.getName(), event.getName(), outcome.getTitle(), side, price, shares);
+        Order order = new Order(nextOrderNumber++, user.getName(), event.getName(), outcome.getTitle(), side, price, shares);
+        OrderBook ownBook = event.getOrCreateOrderBook(outcome.getTitle());
+        OrderBook mintBook = event.isAllowMint()
+                ? event.getOrCreateOrderBook(event.getOtherOutcome(outcome).getTitle())
+                : null;
+        for (Fill fill : OrderMatcher.match(order, ownBook, mintBook, event.getD())) {
+            executeFill(event, fill);
+        }
+    }
 
-        OrderBook orderBook = event.getOrCreateOrderBook(outcome.getTitle());
-
-        List<OrderBook.TradeResult> trades = orderBook.processOrder(order);
-
-        for (OrderBook.TradeResult trade : trades) {
-            User buyer = getUserByNameInternal(trade.getBuyerName());
-            User seller = getUserByNameInternal(trade.getSellerName());
-
-            double tradeAmount = trade.getPrice() * trade.getShares();
-            double fee = calculateTradeFee(event, tradeAmount);
-            String traded = formatAmount(trade.getShares()) + " '" + outcome.getTitle() + "' shares in '"
-                    + event.getName() + "' at " + formatAmount(trade.getPrice());
-
-            if (buyer != null) {
-                buyer.getAccount().withdraw(tradeAmount + fee, "Bought " + traded + feeSuffix(fee));
-                buyer.addShares(event.getName(), outcome.getTitle(), trade.getShares());
+    private static OrderSide parseOrderSide(String sideStr) {
+        if (sideStr != null) {
+            for (OrderSide side : OrderSide.values()) {
+                if (side.name().equalsIgnoreCase(sideStr.trim())) {
+                    return side;
+                }
             }
+        }
+        throw new IllegalArgumentException("Order side must be BUY or SELL, got '" + sideStr + "'.");
+    }
 
-            if (seller != null) {
-                seller.getAccount().deposit(tradeAmount, "Sold " + traded);
-                seller.deductShares(event.getName(), outcome.getTitle(), trade.getShares());
+    // The most a buy order can ever cost: every share at its limit price, plus the purchase fee (if any).
+    private double calculateBuyReservation(MarketEvent event, double price, double shares) {
+        double amount = price * shares;
+        return amount + calculateTradeFee(event, amount);
+    }
+
+    private void reserveFundsForBuyOrder(MarketEvent event, User buyer, double price, double shares) {
+        double required = calculateBuyReservation(event, price, shares);
+        double available = buyer.getAccount().getAvailableBalance();
+        if (available < required) {
+            throw new IllegalStateException("This buy order needs " + formatAmount(required) + " (including fees), but only "
+                    + formatAmount(available) + " is available" + reservedSuffix(buyer) + ".");
+        }
+        buyer.getAccount().reserve(required);
+    }
+
+    private static void requireAvailableShares(MarketEvent event, Outcome outcome, User seller, double shares) {
+        double held = seller.getSharesCount(event.getName(), outcome.getTitle());
+        OrderBook orderBook = event.getOrderBook(outcome.getTitle());
+        double alreadyOffered = (orderBook == null) ? 0.0 : orderBook.getOpenSellShares(seller.getName());
+        double available = held - alreadyOffered;
+        if (shares > available + EPSILON) {
+            throw new IllegalStateException("You hold " + formatAmount(held) + " '" + outcome.getTitle() + "' shares and "
+                    + formatAmount(alreadyOffered) + " of them are already offered in open sell orders, so at most "
+                    + formatAmount(Math.max(available, 0.0)) + " can be sold.");
+        }
+    }
+
+    private void executeFill(MarketEvent event, Fill fill) {
+        User buyer = requireUser(fill.buyerName());
+        Outcome outcome = requireOutcome(event, fill.outcomeTitle());
+
+        double amount = fill.price() * fill.shares();
+        double fee = calculateTradeFee(event, amount);
+        String traded = formatAmount(fill.shares()) + " '" + outcome.getTitle() + "' shares in '"
+                + event.getName() + "' at " + formatAmount(fill.price());
+
+        // The buyer's money was reserved at the order's limit price; any saving from a cheaper price is released.
+        double reservedForFill = calculateBuyReservation(event, fill.buyerLimitPrice(), fill.shares());
+        buyer.getAccount().withdrawReserved(amount + fee,
+                "Bought " + traded + (fill.isMinted() ? " (newly minted)" : "") + feeSuffix(fee));
+        double unusedReservation = reservedForFill - (amount + fee);
+        if (unusedReservation > EPSILON) {
+            buyer.getAccount().release(unusedReservation);
+        }
+        buyer.addShares(event.getName(), outcome.getTitle(), fill.shares());
+
+        if (fill.isMinted()) {
+            // New shares were created: the payment backs them in the event account, to be paid out when it closes.
+            event.getEventAccount().deposit(amount, "'" + buyer.getName() + "' paid for minted " + traded);
+        } else {
+            User seller = requireUser(fill.sellerName());
+            seller.getAccount().deposit(amount, "Sold " + traded);
+            seller.deductShares(event.getName(), outcome.getTitle(), fill.shares());
+        }
+
+        payCommission(event, buyer.getName(), fee);
+        event.addTransaction(new Transaction(buyer.getName(), outcome.getTitle(), fill.shares(), amount, fee));
+    }
+
+    // When an event closes, open orders can no longer execute: they are removed and their reserved money is released.
+    private void cancelOpenOrders(MarketEvent event) {
+        for (Outcome outcome : event.getOutcomes()) {
+            OrderBook orderBook = event.getOrderBook(outcome.getTitle());
+            if (orderBook == null) {
+                continue;
             }
-
-            payCommission(event, trade.getBuyerName(), fee);
-
-            Transaction tx = new Transaction(
-                    trade.getBuyerName(),
-                    outcome.getTitle(),
-                    trade.getShares(),
-                    tradeAmount,
-                    fee
-            );
-            event.addTransaction(tx);
+            for (Order order : orderBook.cancelAllOrders()) {
+                if (order.getSide() == OrderSide.BUY) {
+                    requireUser(order.getUserName()).getAccount()
+                            .release(calculateBuyReservation(event, order.getPrice(), order.getSharesCount()));
+                }
+            }
         }
     }
 
@@ -511,7 +567,8 @@ public class EngineImpl implements EngineApi, Serializable {
 
         OrderBook orderBook = event.getOrderBook(outcome.getTitle());
         if (orderBook == null) {
-            return new OrderBookDto(event.getName(), outcome.getTitle(), List.of(), List.of());
+            return new OrderBookDto(event.getName(), outcome.getTitle(), List.of(), List.of(),
+                    null, null, null, null, null);
         }
 
         List<OrderDto> buyDtos = orderBook.getBids().stream()
@@ -522,7 +579,15 @@ public class EngineImpl implements EngineApi, Serializable {
                 .map(this::toOrderDto)
                 .toList();
 
-        return new OrderBookDto(event.getName(), outcome.getTitle(), buyDtos, sellDtos);
+        // MID and SPREAD are meaningful only when both sides of the book have orders.
+        Double bestBid = orderBook.getBestBidPrice();
+        Double bestAsk = orderBook.getBestAskPrice();
+        boolean hasBothSides = (bestBid != null && bestAsk != null);
+        Double midPrice = hasBothSides ? (bestBid + bestAsk) / 2 : null;
+        Double spread = hasBothSides ? bestAsk - bestBid : null;
+
+        return new OrderBookDto(event.getName(), outcome.getTitle(), buyDtos, sellDtos,
+                orderBook.getLastTradePrice(), bestBid, bestAsk, midPrice, spread);
     }
 
     private double calculateTradeFee(MarketEvent event, double tradeAmount) {
@@ -629,6 +694,11 @@ public class EngineImpl implements EngineApi, Serializable {
 
     private static String feeSuffix(double fee) {
         return (fee > 0) ? " (incl. fee " + formatAmount(fee) + ")" : "";
+    }
+
+    private static String reservedSuffix(User user) {
+        double reserved = user.getAccount().getReserved();
+        return (reserved > 0) ? " (" + formatAmount(reserved) + " is held for open buy orders)" : "";
     }
 
     public void addNewUser(String name, double balance) {
