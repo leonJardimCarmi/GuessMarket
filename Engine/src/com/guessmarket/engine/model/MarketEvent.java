@@ -16,9 +16,17 @@ public class MarketEvent implements Serializable {
         ORDER_BOOK
     }
 
+    public enum EventStatus {
+        NOT_STARTED,
+        ACTIVE,
+        CLOSED
+    }
+
+    private static final double LMSR_PAYOUT_PER_SHARE = 1.0;
+
     private final String name;
     private final String description;
-    private boolean isActive = true;
+    private EventStatus status = EventStatus.NOT_STARTED;
     private String winningOutcome = null;
     private double totalFeesCollected = 0.0;
     private final Account eventAccount = new Account(0.0);
@@ -29,11 +37,11 @@ public class MarketEvent implements Serializable {
     private String marketMakerName;
     private final TradingMethod tradingMethod;
 
-    // שדות ייעודיים ל-LMSR
+    // LMSR only
     private final double b;
 
-    // שדות ייעודיים ל-Order Book
-    private final double initialShares;
+    // Order Book only
+    private final double initialInvestment;
     private final boolean allowMint;
     private final double d;
 
@@ -41,12 +49,9 @@ public class MarketEvent implements Serializable {
     private final List<Transaction> transactions;
     private final Map<String, OrderBook> orderBooks = new HashMap<>();
 
-    /**
-     * בנאי מלא עבור MarketEvent (תומך גם ב-LMSR וגם ב-Order Book)
-     */
     public MarketEvent(String name, String description, double feePercentage,
                        FeeType feeType, TradingMethod tradingMethod, double b,
-                       double initialShares, boolean allowMint, double d) {
+                       double initialInvestment, boolean allowMint, double d) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Event name cannot be empty.");
         }
@@ -54,8 +59,8 @@ public class MarketEvent implements Serializable {
             throw new IllegalArgumentException("LMSR parameter B must be strictly positive.");
         }
         if (tradingMethod == TradingMethod.ORDER_BOOK) {
-            if (initialShares < 0) {
-                throw new IllegalArgumentException("Initial shares for Order Book cannot be negative.");
+            if (initialInvestment < 0) {
+                throw new IllegalArgumentException("Initial investment for Order Book cannot be negative.");
             }
             if (d <= 0) {
                 throw new IllegalArgumentException("Order Book parameter 'd' must be strictly positive.");
@@ -71,21 +76,17 @@ public class MarketEvent implements Serializable {
         this.feeType = feeType;
         this.tradingMethod = tradingMethod;
 
-        // הגדרת משתנים בהתאם לשיטת המסחר
         if (tradingMethod == TradingMethod.LMSR) {
             this.b = b;
-            this.initialShares = 0.0;
+            this.initialInvestment = 0.0;
             this.allowMint = false;
             this.d = 0.0;
         } else { // ORDER_BOOK
             this.b = 0.0;
-            this.initialShares = initialShares;
+            this.initialInvestment = initialInvestment;
             this.allowMint = allowMint;
             this.d = d;
         }
-
-        this.isActive = true;
-        this.winningOutcome = null;
 
         this.outcomes = new ArrayList<>();
         this.transactions = new ArrayList<>();
@@ -101,8 +102,8 @@ public class MarketEvent implements Serializable {
         return description;
     }
 
-    public boolean isActive() {
-        return isActive;
+    public EventStatus getStatus() {
+        return status;
     }
 
     public String getWinningOutcome() {
@@ -140,8 +141,8 @@ public class MarketEvent implements Serializable {
         return b;
     }
 
-    public double getInitialShares() {
-        return initialShares;
+    public double getInitialInvestment() {
+        return initialInvestment;
     }
 
     public boolean isAllowMint() {
@@ -150,6 +151,10 @@ public class MarketEvent implements Serializable {
 
     public double getD() {
         return d;
+    }
+
+    public double getPayoutPerShare() {
+        return (tradingMethod == TradingMethod.LMSR) ? LMSR_PAYOUT_PER_SHARE : d;
     }
 
     public List<Outcome> getOutcomes() {
@@ -181,11 +186,18 @@ public class MarketEvent implements Serializable {
         }
     }
 
-    public void closeEvent(String winningOutcomeTitle) {
-        if (!isActive) {
-            throw new IllegalStateException("Event is already closed.");
+    public void open() {
+        if (status != EventStatus.NOT_STARTED) {
+            throw new IllegalStateException("Event '" + name + "' has already been opened.");
         }
-        this.isActive = false;
+        this.status = EventStatus.ACTIVE;
+    }
+
+    public void close(String winningOutcomeTitle) {
+        if (status != EventStatus.ACTIVE) {
+            throw new IllegalStateException("Only an active event can be closed. Event '" + name + "' is " + status + ".");
+        }
+        this.status = EventStatus.CLOSED;
         this.winningOutcome = winningOutcomeTitle;
     }
 

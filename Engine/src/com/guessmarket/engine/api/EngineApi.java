@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface EngineApi extends Serializable {
 
-    List<String> loadEventsFromXml(InputStream xmlContent, String uploaderName) ;
+    List<String> loadEventsFromXml(InputStream xmlContent, String uploaderName);
 
     List<MarketEventDto> getAllMarketEvents();
 
@@ -29,7 +29,9 @@ public interface EngineApi extends Serializable {
 
     OrderBookDto getOrderBook(String eventName, String outcomeTitle);
 
-    void closeMarket(String eventName, String winningOutcomeTitle);
+    void openEvent(String userName, String eventName);
+
+    void closeEvent(String userName, String eventName, String winningOutcomeTitle);
 
     void depositFunds(String userName, double amount);
 

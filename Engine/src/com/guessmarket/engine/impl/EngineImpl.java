@@ -17,6 +17,7 @@ public class EngineImpl implements EngineApi, Serializable {
     private static final int REQUIRED_OPTIONS_COUNT = 2;
     private static final String COMMISSION_ON_CLOSE = "on-close";
     private static final String COMMISSION_ON_PURCHASE = "on-purchase";
+    private static final double EPSILON = 1e-9;
 
     private final Map<String, MarketEvent> eventsMap = new HashMap<>();
     private final Map<String, User> usersMap = new HashMap<>();
@@ -55,7 +56,7 @@ public class EngineImpl implements EngineApi, Serializable {
         return new MarketEventDto(
                 event.getName(),
                 event.getDescription(),
-                event.isActive(),
+                event.getStatus().name(),
                 event.getWinningOutcome(),
                 mmName,
                 eventBalance,
@@ -170,7 +171,7 @@ public class EngineImpl implements EngineApi, Serializable {
 
         MarketEvent.TradingMethod tradingMethod;
         double b = 0.0;
-        double initialShares = 0.0;
+        double initialInvestment = 0.0;
         double d = 0.0;
         boolean allowMint = false;
 
@@ -180,7 +181,7 @@ public class EngineImpl implements EngineApi, Serializable {
         } else {
             GMOrderBook orderBook = method.getGMOrderBook();
             tradingMethod = MarketEvent.TradingMethod.ORDER_BOOK;
-            initialShares = orderBook.getInitial();
+            initialInvestment = orderBook.getInitial();
             d = orderBook.getD();
             allowMint = "true".equalsIgnoreCase(orderBook.getAllowMint());
         }
@@ -192,7 +193,7 @@ public class EngineImpl implements EngineApi, Serializable {
                 parseFeeType(xmlEvent.getCommission().getType()),
                 tradingMethod,
                 b,
-                initialShares,
+                initialInvestment,
                 allowMint,
                 d
         );
@@ -264,10 +265,7 @@ public class EngineImpl implements EngineApi, Serializable {
 
     @Override
     public List<AccountEntryDto> getAccountEntries(String userName, int fromIndex) {
-        User user = getUserByNameInternal(userName);
-        if (user == null) {
-            throw new IllegalArgumentException("User '" + userName + "' was not found.");
-        }
+        User user = requireUser(userName);
         if (fromIndex < 0) {
             throw new IllegalArgumentException("fromIndex cannot be negative.");
         }
@@ -287,35 +285,18 @@ public class EngineImpl implements EngineApi, Serializable {
         if (amount <= 0) {
             throw new IllegalArgumentException("Deposit amount must be positive.");
         }
-        User user = getUserByNameInternal(userName);
-        if (user == null) {
-            throw new IllegalArgumentException("User '" + userName + "' was not found.");
-        }
-        user.getAccount().deposit(amount, "Deposit");
+        requireUser(userName).getAccount().deposit(amount, "Deposit");
     }
 
     @Override
     public void buySharesLMSR(String userName, String eventName, String outcomeTitle, double sharesToBuy) {
-        User user = getUserByNameInternal(userName);
-        if (user == null) {
-            throw new IllegalArgumentException("User '" + userName + "' was not found.");
-        }
-
-        MarketEvent event = getEventByNameInternal(eventName);
-        if (event == null) {
-            throw new IllegalArgumentException("Event '" + eventName + "' was not found.");
-        }
-        if (!event.isActive()) {
-            throw new IllegalStateException("Event '" + event.getName() + "' is closed.");
-        }
+        User user = requireUser(userName);
+        MarketEvent event = requireEvent(eventName);
+        requireActive(event);
         if (event.getTradingMethod() != MarketEvent.TradingMethod.LMSR) {
             throw new IllegalArgumentException("Event '" + event.getName() + "' does not use LMSR trading.");
         }
-
-        Outcome outcome = event.getOutcomeByTitle(outcomeTitle);
-        if (outcome == null) {
-            throw new IllegalArgumentException("Outcome '" + outcomeTitle + "' does not exist in event '" + event.getName() + "'.");
-        }
+        Outcome outcome = requireOutcome(event, outcomeTitle);
 
         double rawCost = LmsrCalculator.calculatePurchaseCost(event.getOutcomes(), outcome.getTitle(), sharesToBuy, event.getB());
         double feePaid = 0.0;
@@ -332,11 +313,8 @@ public class EngineImpl implements EngineApi, Serializable {
         String purchase = formatAmount(sharesToBuy) + " '" + outcome.getTitle() + "' shares";
         user.getAccount().withdraw(totalCost,
                 "Bought " + purchase + " in '" + event.getName() + "'" + feeSuffix(feePaid));
-        event.getEventAccount().deposit(totalCost,
-                "'" + user.getName() + "' bought " + purchase + feeSuffix(feePaid));
-        if (feePaid > 0) {
-            event.addFeeCollected(feePaid);
-        }
+        event.getEventAccount().deposit(rawCost, "'" + user.getName() + "' bought " + purchase);
+        payCommission(event, user.getName(), feePaid);
 
         outcome.addShares(sharesToBuy);
         user.addShares(event.getName(), outcome.getTitle(), sharesToBuy);
@@ -345,57 +323,104 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public void closeMarket(String eventName, String winningOutcomeTitle) {
-        MarketEvent event = getEventByNameInternal(eventName);
-        if (event == null) {
-            throw new IllegalArgumentException("Event '" + eventName + "' was not found.");
-        }
-        if (!event.isActive()) {
-            throw new IllegalStateException("Event '" + event.getName() + "' is already closed.");
-        }
-
-        Outcome winningOutcome = event.getOutcomeByTitle(winningOutcomeTitle);
-        if (winningOutcome == null) {
-            throw new IllegalArgumentException("Outcome '" + winningOutcomeTitle + "' does not exist in event '" + event.getName() + "'.");
+    public void openEvent(String userName, String eventName) {
+        User marketMaker = requireUser(userName);
+        MarketEvent event = requireEvent(eventName);
+        requireMarketMaker(event, marketMaker, "open");
+        if (event.getStatus() != MarketEvent.EventStatus.NOT_STARTED) {
+            throw new IllegalStateException("Event '" + event.getName() + "' has already been opened.");
         }
 
-        event.closeEvent(winningOutcome.getTitle());
+        double openingCost = calculateOpeningCost(event);
+        if (marketMaker.getBalance() < openingCost) {
+            throw new IllegalStateException("Opening '" + event.getName() + "' costs " + formatAmount(openingCost)
+                    + ", but market maker '" + marketMaker.getName() + "' has only " + formatAmount(marketMaker.getBalance()) + ".");
+        }
 
+        event.open();
+        if (openingCost > 0) {
+            marketMaker.getAccount().withdraw(openingCost, "Opened event '" + event.getName() + "'");
+            event.getEventAccount().deposit(openingCost, "Opening funds from market maker '" + marketMaker.getName() + "'");
+        }
+        if (event.getTradingMethod() == MarketEvent.TradingMethod.ORDER_BOOK) {
+            giveInitialSharePairs(event, marketMaker);
+        }
+    }
+
+    // LMSR: the subsidy is the cost function before any purchase, b * ln(number of outcomes).
+    // Order Book: the market maker invests the 'initial' amount and receives initial / d pairs of shares.
+    private static double calculateOpeningCost(MarketEvent event) {
+        if (event.getTradingMethod() == MarketEvent.TradingMethod.LMSR) {
+            return LmsrCalculator.calculateCostFunction(event.getOutcomes(), event.getB());
+        }
+        return event.getInitialInvestment();
+    }
+
+    private static void giveInitialSharePairs(MarketEvent event, User marketMaker) {
+        double pairs = event.getInitialInvestment() / event.getD();
+        if (pairs <= 0) {
+            return;
+        }
+        for (Outcome outcome : event.getOutcomes()) {
+            marketMaker.addShares(event.getName(), outcome.getTitle(), pairs);
+        }
+    }
+
+    @Override
+    public void closeEvent(String userName, String eventName, String winningOutcomeTitle) {
+        User marketMaker = requireUser(userName);
+        MarketEvent event = requireEvent(eventName);
+        requireMarketMaker(event, marketMaker, "close");
+        requireActive(event);
+        Outcome winningOutcome = requireOutcome(event, winningOutcomeTitle);
+
+        double totalPayout = countHeldShares(event, winningOutcome) * event.getPayoutPerShare();
+        double eventBalance = event.getEventAccount().getBalance();
+        if (totalPayout > eventBalance + EPSILON) {
+            throw new IllegalStateException("Event '" + event.getName() + "' cannot cover the payouts: needs "
+                    + formatAmount(totalPayout) + " but holds " + formatAmount(eventBalance) + ".");
+        }
+
+        event.close(winningOutcome.getTitle());
+        payWinners(event, winningOutcome);
+        returnRemainingBalance(event, marketMaker);
+    }
+
+    private double countHeldShares(MarketEvent event, Outcome outcome) {
+        double total = 0.0;
         for (User user : usersMap.values()) {
-            double winningShares = user.getSharesCount(event.getName(), winningOutcome.getTitle());
-            if (winningShares > 0) {
-                double grossPayout = winningShares * 1.0;
-                double fee = 0.0;
-
-                if (event.getFeeType() == MarketEvent.FeeType.AT_RESOLUTION) {
-                    fee = grossPayout * (event.getFeePercentage() / 100.0);
-                }
-
-                double netPayout = grossPayout - fee;
-
-                String winnings = formatAmount(winningShares) + " winning '" + winningOutcome.getTitle() + "' shares";
-                event.getEventAccount().withdraw(grossPayout,
-                        "Payout to '" + user.getName() + "' for " + winnings);
-                user.getAccount().deposit(netPayout,
-                        "Payout for " + winnings + " in '" + event.getName() + "'"
-                                + ((fee > 0) ? " (fee " + formatAmount(fee) + " deducted)" : ""));
-
-                if (fee > 0) {
-                    event.addFeeCollected(fee);
-                }
-            }
+            total += user.getSharesCount(event.getName(), outcome.getTitle());
         }
+        return total;
+    }
 
-        String mmName = event.getMarketMakerName();
-        User mmUser = (mmName != null) ? getUserByNameInternal(mmName) : null;
-        if (mmUser != null) {
-            double remainingBalance = event.getEventAccount().getBalance();
-            if (remainingBalance > 0) {
-                event.getEventAccount().withdraw(remainingBalance,
-                        "Remaining balance returned to market maker '" + mmUser.getName() + "'");
-                mmUser.getAccount().deposit(remainingBalance,
-                        "Remaining balance of closed event '" + event.getName() + "'");
+    private void payWinners(MarketEvent event, Outcome winningOutcome) {
+        for (User holder : usersMap.values()) {
+            double winningShares = holder.getSharesCount(event.getName(), winningOutcome.getTitle());
+            if (winningShares <= 0) {
+                continue;
             }
+            // Math.min only absorbs floating-point rounding; coverage was verified before closing.
+            double grossPayout = Math.min(winningShares * event.getPayoutPerShare(), event.getEventAccount().getBalance());
+            double fee = (event.getFeeType() == MarketEvent.FeeType.AT_RESOLUTION)
+                    ? grossPayout * (event.getFeePercentage() / 100.0)
+                    : 0.0;
+
+            String winnings = formatAmount(winningShares) + " winning '" + winningOutcome.getTitle() + "' shares";
+            event.getEventAccount().withdraw(grossPayout, "Payout to '" + holder.getName() + "' for " + winnings);
+            holder.getAccount().deposit(grossPayout - fee, "Payout for " + winnings + " in '" + event.getName() + "'"
+                    + ((fee > 0) ? " (fee " + formatAmount(fee) + " deducted)" : ""));
+            payCommission(event, holder.getName(), fee);
+        }
+    }
+
+    private static void returnRemainingBalance(MarketEvent event, User marketMaker) {
+        double remainingBalance = event.getEventAccount().getBalance();
+        if (remainingBalance > 0) {
+            event.getEventAccount().withdraw(remainingBalance,
+                    "Remaining balance returned to market maker '" + marketMaker.getName() + "'");
+            marketMaker.getAccount().deposit(remainingBalance,
+                    "Remaining balance of closed event '" + event.getName() + "'");
         }
     }
 
@@ -406,29 +431,16 @@ public class EngineImpl implements EngineApi, Serializable {
             throw new IllegalArgumentException("Price and shares must be positive.");
         }
 
-        MarketEvent event = getEventByNameInternal(eventName);
-        if (event == null) {
-            throw new IllegalArgumentException("Event '" + eventName + "' was not found.");
-        }
-        if (!event.isActive()) {
-            throw new IllegalStateException("Event '" + event.getName() + "' is closed.");
-        }
+        User user = requireUser(userName);
+        MarketEvent event = requireEvent(eventName);
+        requireActive(event);
         if (event.getTradingMethod() != MarketEvent.TradingMethod.ORDER_BOOK) {
             throw new IllegalArgumentException("Event '" + event.getName() + "' does not use ORDER_BOOK trading.");
         }
-
-        Outcome outcome = event.getOutcomeByTitle(outcomeTitle);
-        if (outcome == null) {
-            throw new IllegalArgumentException("Outcome '" + outcomeTitle + "' does not exist in event '" + event.getName() + "'.");
-        }
+        Outcome outcome = requireOutcome(event, outcomeTitle);
 
         if (price > event.getD()) {
             throw new IllegalArgumentException("Price (" + price + ") exceeds maximum allowed price d (" + event.getD() + ") for this event.");
-        }
-
-        User user = getUserByNameInternal(userName);
-        if (user == null) {
-            throw new IllegalArgumentException("User not found.");
         }
 
         OrderSide side = OrderSide.valueOf(sideStr.toUpperCase());
@@ -473,10 +485,7 @@ public class EngineImpl implements EngineApi, Serializable {
                 seller.deductShares(event.getName(), outcome.getTitle(), trade.getShares());
             }
 
-            if (fee > 0) {
-                event.getEventAccount().deposit(fee, "Fee from '" + trade.getBuyerName() + "' on trade of " + traded);
-                event.addFeeCollected(fee);
-            }
+            payCommission(event, trade.getBuyerName(), fee);
 
             Transaction tx = new Transaction(
                     trade.getBuyerName(),
@@ -555,6 +564,63 @@ public class EngineImpl implements EngineApi, Serializable {
 
     private static String toEventKey(String eventName) {
         return eventName.trim().toLowerCase();
+    }
+
+    private User requireUser(String userName) {
+        User user = getUserByNameInternal(userName);
+        if (user == null) {
+            throw new IllegalArgumentException("User '" + userName + "' was not found.");
+        }
+        return user;
+    }
+
+    private MarketEvent requireEvent(String eventName) {
+        MarketEvent event = getEventByNameInternal(eventName);
+        if (event == null) {
+            throw new IllegalArgumentException("Event '" + eventName + "' was not found.");
+        }
+        return event;
+    }
+
+    private static Outcome requireOutcome(MarketEvent event, String outcomeTitle) {
+        Outcome outcome = event.getOutcomeByTitle(outcomeTitle);
+        if (outcome == null) {
+            throw new IllegalArgumentException("Outcome '" + outcomeTitle + "' does not exist in event '" + event.getName() + "'.");
+        }
+        return outcome;
+    }
+
+    private static void requireActive(MarketEvent event) {
+        switch (event.getStatus()) {
+            case NOT_STARTED -> throw new IllegalStateException(
+                    "Event '" + event.getName() + "' has not been opened by its market maker yet.");
+            case CLOSED -> throw new IllegalStateException("Event '" + event.getName() + "' is closed.");
+            case ACTIVE -> { }
+        }
+    }
+
+    private static void requireMarketMaker(MarketEvent event, User user, String action) {
+        if (!user.getName().equals(event.getMarketMakerName())) {
+            throw new IllegalArgumentException("Only the market maker of '" + event.getName() + "' ("
+                    + event.getMarketMakerName() + ") can " + action + " it.");
+        }
+    }
+
+    private User getMarketMaker(MarketEvent event) {
+        User marketMaker = getUserByNameInternal(event.getMarketMakerName());
+        if (marketMaker == null) {
+            throw new IllegalStateException("Market maker of event '" + event.getName() + "' was not found.");
+        }
+        return marketMaker;
+    }
+
+    private void payCommission(MarketEvent event, String payerName, double fee) {
+        if (fee <= 0) {
+            return;
+        }
+        getMarketMaker(event).getAccount().deposit(fee,
+                "Commission from '" + payerName + "' in '" + event.getName() + "'");
+        event.addFeeCollected(fee);
     }
 
     private static String formatAmount(double value) {

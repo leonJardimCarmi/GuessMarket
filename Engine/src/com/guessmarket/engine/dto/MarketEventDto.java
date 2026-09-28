@@ -9,7 +9,7 @@ public class MarketEventDto implements Serializable {
 
     private final String name;
     private final String description;
-    private final boolean isActive;
+    private final String status;
     private final String winningOutcome;
 
     private final String marketMakerName;
@@ -25,14 +25,14 @@ public class MarketEventDto implements Serializable {
     private final double b;
     private final double d;
 
-    public MarketEventDto(String name, String description, boolean isActive,
+    public MarketEventDto(String name, String description, String status,
                           String winningOutcome, String marketMakerName, double eventBalance,
                           double totalFeesCollected, double feePercentage, String feeType,
                           String tradingMethod, List<OutcomeDto> outcomes,
                           List<TransactionDto> transactions, double B, double D) {
         this.name = name;
         this.description = description;
-        this.isActive = isActive;
+        this.status = status;
         this.winningOutcome = winningOutcome;
         this.marketMakerName = marketMakerName;
         this.eventBalance = eventBalance;
@@ -54,8 +54,8 @@ public class MarketEventDto implements Serializable {
         return description;
     }
 
-    public boolean isActive() {
-        return isActive;
+    public String getStatus() {
+        return status;
     }
 
     public String getWinningOutcome() {
