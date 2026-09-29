@@ -2,6 +2,8 @@ package com.guessmarket.engine.model;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -11,6 +13,8 @@ public class User implements Serializable {
     private final String name;
     private final Account account;
     private final Map<String, Map<String, Double>> userHoldings = new HashMap<>();
+    // One position per event the user takes part in, in the order they joined (key = event name)
+    private final Map<String, Position> positions = new LinkedHashMap<>();
 
     public User(String name, double initialCash) {
         if (name == null || name.trim().isEmpty()) {
@@ -83,5 +87,18 @@ public class User implements Serializable {
 
     public double getBalance() {
         return this.account.getBalance();
+    }
+
+    public Position getOrCreatePosition(String eventName) {
+        return positions.computeIfAbsent(eventName, key -> new Position());
+    }
+
+    // Null when the user never took part in this event
+    public Position getPosition(String eventName) {
+        return positions.get(eventName);
+    }
+
+    public List<String> getParticipatedEventNames() {
+        return List.copyOf(positions.keySet());
     }
 }

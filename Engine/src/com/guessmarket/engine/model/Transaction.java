@@ -2,18 +2,24 @@ package com.guessmarket.engine.model;
 
 import java.io.Serializable;
 
+/**
+ * One purchase of shares in an event. The seller is null when nobody sold the shares:
+ * an LMSR purchase (bought from the event) or minted Order Book shares.
+ */
 public class Transaction implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private final String userName;
+    private final String buyerName;
+    private final String sellerName;
     private final String outcomeTitle;
     private final double shareAmount;
     private final double cost;
     private final double feePaid;
 
-    public Transaction(String userName, String outcomeTitle, double shareAmount, double cost, double feePaid) {
-        if (userName == null || userName.trim().isEmpty()) {
-            throw new IllegalArgumentException("User name cannot be empty.");
+    public Transaction(String buyerName, String sellerName, String outcomeTitle,
+                       double shareAmount, double cost, double feePaid) {
+        if (buyerName == null || buyerName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Buyer name cannot be empty.");
         }
         if (outcomeTitle == null || outcomeTitle.trim().isEmpty()) {
             throw new IllegalArgumentException("Outcome title cannot be empty.");
@@ -25,15 +31,24 @@ public class Transaction implements Serializable {
             throw new IllegalArgumentException("Cost and fee paid cannot be negative.");
         }
 
-        this.userName = userName.trim();
+        this.buyerName = buyerName.trim();
+        this.sellerName = sellerName;
         this.outcomeTitle = outcomeTitle.trim();
         this.shareAmount = shareAmount;
         this.cost = cost;
         this.feePaid = feePaid;
     }
 
-    public String getUserName() {
-        return userName;
+    public String getBuyerName() {
+        return buyerName;
+    }
+
+    public String getSellerName() {
+        return sellerName;
+    }
+
+    public boolean involves(String userName) {
+        return buyerName.equals(userName) || userName.equals(sellerName);
     }
 
     public String getOutcomeTitle() {

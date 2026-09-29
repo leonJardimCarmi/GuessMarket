@@ -20,8 +20,9 @@ public class EngineImpl implements EngineApi, Serializable {
     private static final double EPSILON = 1e-9;
     private static final double PRICE_TICK = 0.01;
 
-    private final Map<String, MarketEvent> eventsMap = new HashMap<>();
-    private final Map<String, User> usersMap = new HashMap<>();
+    // LinkedHashMap keeps insertion order: events are listed in upload order, users in registration order.
+    private final Map<String, MarketEvent> eventsMap = new LinkedHashMap<>();
+    private final Map<String, User> usersMap = new LinkedHashMap<>();
     private long nextOrderNumber = 1;
 
     private MarketEventDto createDtoEvent(MarketEvent event) {
@@ -41,13 +42,7 @@ public class EngineImpl implements EngineApi, Serializable {
 
         List<TransactionDto> transactionDtos = new ArrayList<>();
         for (Transaction transaction : event.getTransactions()) {
-            transactionDtos.add(new TransactionDto(
-                    transaction.getUserName(),
-                    transaction.getOutcomeTitle(),
-                    transaction.getShareAmount(),
-                    transaction.getTotalPaid(),
-                    transaction.getFeePaid()
-            ));
+            transactionDtos.add(toTransactionDto(transaction));
         }
 
         String mmName = event.getMarketMakerName();
@@ -72,9 +67,9 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     private UserDto createDtoUser(User user) {
-        Map<String, Map<String, Double>> holdings = new HashMap<>();
+        Map<String, Map<String, Double>> holdings = new LinkedHashMap<>();
         for (MarketEvent event : eventsMap.values()) {
-            Map<String, Double> eventHoldings = new HashMap<>();
+            Map<String, Double> eventHoldings = new LinkedHashMap<>();
             for (Outcome outcome : event.getOutcomes()) {
                 double shares = user.getSharesCount(event.getName(), outcome.getTitle());
                 if (shares > 0) {
@@ -85,7 +80,29 @@ public class EngineImpl implements EngineApi, Serializable {
                 holdings.put(event.getName(), eventHoldings);
             }
         }
-        return new UserDto(user.getName(), user.getAccount().getBalance(), user.getAccount().getReserved(), holdings);
+        return new UserDto(user.getName(), user.getAccount().getBalance(), user.getAccount().getReserved(),
+                holdings, getMarketMakerEventNames(user), user.getParticipatedEventNames());
+    }
+
+    private static TransactionDto toTransactionDto(Transaction transaction) {
+        return new TransactionDto(
+                transaction.getBuyerName(),
+                transaction.getSellerName(),
+                transaction.getOutcomeTitle(),
+                transaction.getShareAmount(),
+                transaction.getTotalPaid(),
+                transaction.getFeePaid()
+        );
+    }
+
+    private List<String> getMarketMakerEventNames(User user) {
+        List<String> eventNames = new ArrayList<>();
+        for (MarketEvent event : eventsMap.values()) {
+            if (user.getName().equals(event.getMarketMakerName())) {
+                eventNames.add(event.getName());
+            }
+        }
+        return eventNames;
     }
 
     private OrderDto toOrderDto(Order order) {
@@ -249,18 +266,88 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public List<UserDto> getAllUsers() {
-        List<UserDto> dtos = new ArrayList<>();
-        for (User user : usersMap.values()) {
-            dtos.add(createDtoUser(user));
+    public void registerUser(String userName) {
+        if (userName == null || userName.isBlank()) {
+            throw new IllegalArgumentException("User name cannot be empty.");
         }
-        return dtos;
+        String key = toUserKey(userName);
+        if (usersMap.containsKey(key)) {
+            throw new IllegalArgumentException("The user name '" + userName.trim() + "' is already taken.");
+        }
+        // New users start with an empty account; they add money with depositFunds.
+        usersMap.put(key, new User(userName, 0.0));
+    }
+
+    @Override
+    public boolean isUserRegistered(String userName) {
+        return getUserByNameInternal(userName) != null;
+    }
+
+    @Override
+    public List<UserSummaryDto> getAllUsers() {
+        List<UserSummaryDto> summaries = new ArrayList<>();
+        for (User user : usersMap.values()) {
+            boolean isMarketMaker = !getMarketMakerEventNames(user).isEmpty();
+            summaries.add(new UserSummaryDto(user.getName(), user.getBalance(), isMarketMaker));
+        }
+        return summaries;
     }
 
     @Override
     public UserDto getUserByName(String userName) {
         User user = getUserByNameInternal(userName);
         return (user != null) ? createDtoUser(user) : null;
+    }
+
+    @Override
+    public UserEventDetailsDto getUserEventDetails(String userName, String eventName) {
+        User user = requireUser(userName);
+        MarketEvent event = requireEvent(eventName);
+        Position position = user.getPosition(event.getName());
+        if (position == null) {
+            position = new Position(); // never took part: every amount is zero
+        }
+
+        Map<String, Double> holdings = new LinkedHashMap<>();
+        for (Outcome outcome : event.getOutcomes()) {
+            holdings.put(outcome.getTitle(), user.getSharesCount(event.getName(), outcome.getTitle()));
+        }
+
+        return new UserEventDetailsDto(event.getName(), event.getStatus().name(), event.getTradingMethod().name(),
+                event.getWinningOutcome(), user.getName().equals(event.getMarketMakerName()),
+                holdings, position.getInvestedByOutcome(), position.getInvested(), position.getFeesPaid(),
+                position.getReceived(), position.getCommissionsEarned(), position.getProfitLoss(),
+                getTradesOf(user, event), getOpenOrdersOf(user, event));
+    }
+
+    // The user's trades in the event (as buyer or seller), newest first
+    private static List<TransactionDto> getTradesOf(User user, MarketEvent event) {
+        List<Transaction> transactions = event.getTransactions();
+        List<TransactionDto> trades = new ArrayList<>();
+        for (int i = transactions.size() - 1; i >= 0; i--) {
+            if (transactions.get(i).involves(user.getName())) {
+                trades.add(toTransactionDto(transactions.get(i)));
+            }
+        }
+        return trades;
+    }
+
+    private List<OrderDto> getOpenOrdersOf(User user, MarketEvent event) {
+        List<OrderDto> openOrders = new ArrayList<>();
+        for (Outcome outcome : event.getOutcomes()) {
+            OrderBook orderBook = event.getOrderBook(outcome.getTitle());
+            if (orderBook == null) {
+                continue;
+            }
+            List<Order> orders = new ArrayList<>(orderBook.getBids());
+            orders.addAll(orderBook.getAsks());
+            for (Order order : orders) {
+                if (order.getUserName().equals(user.getName())) {
+                    openOrders.add(toOrderDto(order));
+                }
+            }
+        }
+        return openOrders;
     }
 
     @Override
@@ -316,12 +403,13 @@ public class EngineImpl implements EngineApi, Serializable {
         user.getAccount().withdraw(totalCost,
                 "Bought " + purchase + " in '" + event.getName() + "'" + feeSuffix(feePaid));
         event.getEventAccount().deposit(rawCost, "'" + user.getName() + "' bought " + purchase);
-        payCommission(event, user.getName(), feePaid);
+        positionOf(user, event).addShareInvestment(outcome.getTitle(), rawCost);
+        payCommission(event, user, feePaid);
 
         outcome.addShares(sharesToBuy);
         user.addShares(event.getName(), outcome.getTitle(), sharesToBuy);
 
-        event.addTransaction(new Transaction(user.getName(), outcome.getTitle(), sharesToBuy, rawCost, feePaid));
+        event.addTransaction(new Transaction(user.getName(), null, outcome.getTitle(), sharesToBuy, rawCost, feePaid));
     }
 
     @Override
@@ -346,6 +434,7 @@ public class EngineImpl implements EngineApi, Serializable {
             marketMaker.getAccount().withdraw(openingCost, "Opened event '" + event.getName() + "'");
             event.getEventAccount().deposit(openingCost, "Opening funds from market maker '" + marketMaker.getName() + "'");
         }
+        positionOf(marketMaker, event).addInvestment(openingCost);
         if (event.getTradingMethod() == MarketEvent.TradingMethod.ORDER_BOOK) {
             giveInitialSharePairs(event, marketMaker);
         }
@@ -415,7 +504,8 @@ public class EngineImpl implements EngineApi, Serializable {
             event.getEventAccount().withdraw(grossPayout, "Payout to '" + holder.getName() + "' for " + winnings);
             holder.getAccount().deposit(grossPayout - fee, "Payout for " + winnings + " in '" + event.getName() + "'"
                     + ((fee > 0) ? " (fee " + formatAmount(fee) + " deducted)" : ""));
-            payCommission(event, holder.getName(), fee);
+            positionOf(holder, event).addReceived(grossPayout);
+            payCommission(event, holder, fee);
         }
     }
 
@@ -426,6 +516,7 @@ public class EngineImpl implements EngineApi, Serializable {
                     "Remaining balance returned to market maker '" + marketMaker.getName() + "'");
             marketMaker.getAccount().deposit(remainingBalance,
                     "Remaining balance of closed event '" + event.getName() + "'");
+            positionOf(marketMaker, event).addReceived(remainingBalance);
         }
     }
 
@@ -456,6 +547,7 @@ public class EngineImpl implements EngineApi, Serializable {
         } else {
             requireAvailableShares(event, outcome, user, shares);
         }
+        positionOf(user, event); // placing an order is enough to count as taking part in the event
 
         Order order = new Order(nextOrderNumber++, user.getName(), event.getName(), outcome.getTitle(), side, price, shares);
         OrderBook ownBook = event.getOrCreateOrderBook(outcome.getTitle());
@@ -524,6 +616,7 @@ public class EngineImpl implements EngineApi, Serializable {
             buyer.getAccount().release(unusedReservation);
         }
         buyer.addShares(event.getName(), outcome.getTitle(), fill.shares());
+        positionOf(buyer, event).addShareInvestment(outcome.getTitle(), amount);
 
         if (fill.isMinted()) {
             // New shares were created: the payment backs them in the event account, to be paid out when it closes.
@@ -532,10 +625,11 @@ public class EngineImpl implements EngineApi, Serializable {
             User seller = requireUser(fill.sellerName());
             seller.getAccount().deposit(amount, "Sold " + traded);
             seller.deductShares(event.getName(), outcome.getTitle(), fill.shares());
+            positionOf(seller, event).addReceived(amount);
         }
 
-        payCommission(event, buyer.getName(), fee);
-        event.addTransaction(new Transaction(buyer.getName(), outcome.getTitle(), fill.shares(), amount, fee));
+        payCommission(event, buyer, fee);
+        event.addTransaction(new Transaction(buyer.getName(), fill.sellerName(), outcome.getTitle(), fill.shares(), amount, fee));
     }
 
     // When an event closes, open orders can no longer execute: they are removed and their reserved money is released.
@@ -620,7 +714,11 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     private User getUserByNameInternal(String name) {
-        return (name != null) ? usersMap.get(name.toLowerCase()) : null;
+        return (name != null) ? usersMap.get(toUserKey(name)) : null;
+    }
+
+    private static String toUserKey(String userName) {
+        return userName.trim().toLowerCase();
     }
 
     private MarketEvent getEventByNameInternal(String name) {
@@ -679,13 +777,20 @@ public class EngineImpl implements EngineApi, Serializable {
         return marketMaker;
     }
 
-    private void payCommission(MarketEvent event, String payerName, double fee) {
+    // The payer's account was already charged (the fee is part of what they paid); this delivers it to the market maker.
+    private void payCommission(MarketEvent event, User payer, double fee) {
         if (fee <= 0) {
             return;
         }
-        getMarketMaker(event).getAccount().deposit(fee,
-                "Commission from '" + payerName + "' in '" + event.getName() + "'");
+        User marketMaker = getMarketMaker(event);
+        marketMaker.getAccount().deposit(fee, "Commission from '" + payer.getName() + "' in '" + event.getName() + "'");
         event.addFeeCollected(fee);
+        positionOf(payer, event).addFeePaid(fee);
+        positionOf(marketMaker, event).addCommissionEarned(fee);
+    }
+
+    private static Position positionOf(User user, MarketEvent event) {
+        return user.getOrCreatePosition(event.getName());
     }
 
     private static String formatAmount(double value) {
@@ -699,22 +804,5 @@ public class EngineImpl implements EngineApi, Serializable {
     private static String reservedSuffix(User user) {
         double reserved = user.getAccount().getReserved();
         return (reserved > 0) ? " (" + formatAmount(reserved) + " is held for open buy orders)" : "";
-    }
-
-    public void addNewUser(String name, double balance) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("User name cannot be empty.");
-        }
-        if (balance < 0) {
-            throw new IllegalArgumentException("Initial balance cannot be negative.");
-        }
-
-        String key = name.toLowerCase();
-        if (usersMap.containsKey(key)) {
-            throw new IllegalArgumentException("User with name '" + name + "' already exists.");
-        }
-
-        User newUser = new User(name, balance);
-        usersMap.put(key, newUser);
     }
 }

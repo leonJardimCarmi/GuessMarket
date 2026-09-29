@@ -4,6 +4,8 @@ import com.guessmarket.engine.dto.AccountEntryDto;
 import com.guessmarket.engine.dto.MarketEventDto;
 import com.guessmarket.engine.dto.OrderBookDto;
 import com.guessmarket.engine.dto.UserDto;
+import com.guessmarket.engine.dto.UserEventDetailsDto;
+import com.guessmarket.engine.dto.UserSummaryDto;
 
 import java.io.InputStream;
 import java.io.Serializable;
@@ -17,9 +19,15 @@ public interface EngineApi extends Serializable {
 
     MarketEventDto getMarketEventByName(String eventName);
 
-    List<UserDto> getAllUsers();
+    void registerUser(String userName);
+
+    boolean isUserRegistered(String userName);
+
+    List<UserSummaryDto> getAllUsers();
 
     UserDto getUserByName(String name);
+
+    UserEventDetailsDto getUserEventDetails(String userName, String eventName);
 
     List<AccountEntryDto> getAccountEntries(String userName, int fromIndex);
 
