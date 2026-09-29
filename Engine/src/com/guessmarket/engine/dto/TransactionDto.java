@@ -1,10 +1,6 @@
 package com.guessmarket.engine.dto;
 
-import java.io.Serializable;
-
-public class TransactionDto implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class TransactionDto {
     private final String buyerName;
     private final String sellerName; // null when the shares were bought from the event (LMSR) or minted
     private final String outcomeTitle;

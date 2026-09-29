@@ -1,12 +1,9 @@
 package com.guessmarket.engine.dto;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
-public class UserDto implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class UserDto {
     private final String name;
     private final double balance;
     private final double reservedBalance;

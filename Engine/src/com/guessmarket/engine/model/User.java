@@ -1,15 +1,12 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class User implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class User {
     private final String name;
     private final Account account;
     private final Map<String, Map<String, Double>> userHoldings = new HashMap<>();

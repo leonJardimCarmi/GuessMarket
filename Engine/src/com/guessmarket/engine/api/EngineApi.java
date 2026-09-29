@@ -8,10 +8,13 @@ import com.guessmarket.engine.dto.UserEventDetailsDto;
 import com.guessmarket.engine.dto.UserSummaryDto;
 
 import java.io.InputStream;
-import java.io.Serializable;
 import java.util.List;
 
-public interface EngineApi extends Serializable {
+/**
+ * The engine's operations. Implementations must be safe to call from many threads at once
+ * (the server handles every request on its own thread).
+ */
+public interface EngineApi {
 
     List<String> loadEventsFromXml(InputStream xmlContent, String uploaderName);
 
@@ -42,10 +45,4 @@ public interface EngineApi extends Serializable {
     void closeEvent(String userName, String eventName, String winningOutcomeTitle);
 
     void depositFunds(String userName, double amount);
-
-    void saveStateToFile(String filePath) throws Exception;
-
-    static EngineApi loadStateFromFile(String filePath) throws Exception {
-        return null;
-    }
 }

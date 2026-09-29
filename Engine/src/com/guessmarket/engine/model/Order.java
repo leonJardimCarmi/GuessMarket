@@ -1,10 +1,6 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
-
-public class Order implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class Order {
     private final long sequenceNumber;
     private final String userName;
     private final String eventName;

@@ -1,13 +1,8 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
-
-public class Outcome  implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class Outcome {
     private final String title;
     private double sharesBought;
-
 
     public Outcome(String title) {
         this.title = title;

@@ -1,6 +1,5 @@
 package com.guessmarket.engine.dto;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
@@ -8,9 +7,7 @@ import java.util.Map;
  * Everything about one user's participation in one event: holdings, money flows, own trades and open orders.
  * profitLoss is final once the event is CLOSED; while it is active it is only the result so far.
  */
-public class UserEventDetailsDto implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class UserEventDetailsDto {
     private final String eventName;
     private final String status;
     private final String tradingMethod;

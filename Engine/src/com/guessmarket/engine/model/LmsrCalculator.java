@@ -1,11 +1,8 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
 import java.util.List;
 
-public class LmsrCalculator implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class LmsrCalculator {
     private LmsrCalculator() {}
 
     //C(q) = b * ln(sum(e^(q_i / b)))
@@ -71,6 +68,5 @@ public class LmsrCalculator implements Serializable {
     public static double calculateFee(double amount, double feePercentage, double B){
         return amount * (feePercentage / 100.0);
     }
-
 
 }

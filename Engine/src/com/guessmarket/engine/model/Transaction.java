@@ -1,14 +1,10 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
-
 /**
  * One purchase of shares in an event. The seller is null when nobody sold the shares:
  * an LMSR purchase (bought from the event) or minted Order Book shares.
  */
-public class Transaction implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class Transaction {
     private final String buyerName;
     private final String sellerName;
     private final String outcomeTitle;

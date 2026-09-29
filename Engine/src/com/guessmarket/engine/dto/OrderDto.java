@@ -1,10 +1,6 @@
 package com.guessmarket.engine.dto;
 
-import java.io.Serializable;
-
-public class OrderDto implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class OrderDto {
     private final String id;
     private final String userName;
     private final String eventName;

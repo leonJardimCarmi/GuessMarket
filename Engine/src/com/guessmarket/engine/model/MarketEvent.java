@@ -1,11 +1,8 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
 import java.util.*;
 
-public class MarketEvent implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class MarketEvent {
     public enum FeeType {
         AT_PURCHASE,
         AT_RESOLUTION
@@ -219,11 +216,11 @@ public class MarketEvent implements Serializable {
         this.totalFeesCollected += fee;
     }
 
-    public synchronized OrderBook getOrCreateOrderBook(String outcomeTitle) {
+    public OrderBook getOrCreateOrderBook(String outcomeTitle) {
         return orderBooks.computeIfAbsent(outcomeTitle, k -> new OrderBook());
     }
 
-    public synchronized OrderBook getOrderBook(String outcomeTitle) {
+    public OrderBook getOrderBook(String outcomeTitle) {
         return orderBooks.get(outcomeTitle);
     }
 }

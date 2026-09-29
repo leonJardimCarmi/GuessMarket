@@ -1,13 +1,10 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Account implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class Account {
     private static final double EPSILON = 1e-9;
 
     private double balance;

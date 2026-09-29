@@ -1,10 +1,6 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
-
-public class AccountEntry implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class AccountEntry {
     private final String description;
     private final double amount;
     private final double balanceAfter;

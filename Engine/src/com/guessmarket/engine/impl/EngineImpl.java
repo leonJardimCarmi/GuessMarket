@@ -11,9 +11,13 @@ import jakarta.xml.bind.Unmarshaller;
 import java.io.*;
 import java.util.*;
 
-public class EngineImpl implements EngineApi, Serializable {
-    private static final long serialVersionUID = 1L;
-
+/**
+ * The engine is shared by all the server's request threads.
+ * Thread safety: every public method is synchronized on this engine, so exactly one request works on the engine
+ * at a time and each operation runs as one uninterrupted unit. Every returned DTO is a fresh copy (a snapshot),
+ * so callers can use it after the lock is released while other requests keep changing the engine.
+ */
+public class EngineImpl implements EngineApi {
     private static final int REQUIRED_OPTIONS_COUNT = 2;
     private static final String COMMISSION_ON_CLOSE = "on-close";
     private static final String COMMISSION_ON_PURCHASE = "on-purchase";
@@ -120,7 +124,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public List<String> loadEventsFromXml(InputStream xmlContent, String uploaderName) {
+    public synchronized List<String> loadEventsFromXml(InputStream xmlContent, String uploaderName) {
         User uploader = getUserByNameInternal(uploaderName);
         if (uploader == null) {
             throw new IllegalArgumentException("User '" + uploaderName + "' was not found.");
@@ -251,7 +255,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public List<MarketEventDto> getAllMarketEvents() {
+    public synchronized List<MarketEventDto> getAllMarketEvents() {
         List<MarketEventDto> dtos = new ArrayList<>();
         for (MarketEvent event : eventsMap.values()) {
             dtos.add(createDtoEvent(event));
@@ -260,13 +264,13 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public MarketEventDto getMarketEventByName(String eventName) {
+    public synchronized MarketEventDto getMarketEventByName(String eventName) {
         MarketEvent event = getEventByNameInternal(eventName);
         return (event == null) ? null : createDtoEvent(event);
     }
 
     @Override
-    public void registerUser(String userName) {
+    public synchronized void registerUser(String userName) {
         if (userName == null || userName.isBlank()) {
             throw new IllegalArgumentException("User name cannot be empty.");
         }
@@ -279,12 +283,12 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public boolean isUserRegistered(String userName) {
+    public synchronized boolean isUserRegistered(String userName) {
         return getUserByNameInternal(userName) != null;
     }
 
     @Override
-    public List<UserSummaryDto> getAllUsers() {
+    public synchronized List<UserSummaryDto> getAllUsers() {
         List<UserSummaryDto> summaries = new ArrayList<>();
         for (User user : usersMap.values()) {
             boolean isMarketMaker = !getMarketMakerEventNames(user).isEmpty();
@@ -294,13 +298,13 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public UserDto getUserByName(String userName) {
+    public synchronized UserDto getUserByName(String userName) {
         User user = getUserByNameInternal(userName);
         return (user != null) ? createDtoUser(user) : null;
     }
 
     @Override
-    public UserEventDetailsDto getUserEventDetails(String userName, String eventName) {
+    public synchronized UserEventDetailsDto getUserEventDetails(String userName, String eventName) {
         User user = requireUser(userName);
         MarketEvent event = requireEvent(eventName);
         Position position = user.getPosition(event.getName());
@@ -315,7 +319,7 @@ public class EngineImpl implements EngineApi, Serializable {
 
         return new UserEventDetailsDto(event.getName(), event.getStatus().name(), event.getTradingMethod().name(),
                 event.getWinningOutcome(), user.getName().equals(event.getMarketMakerName()),
-                holdings, position.getInvestedByOutcome(), position.getInvested(), position.getFeesPaid(),
+                holdings, new LinkedHashMap<>(position.getInvestedByOutcome()), position.getInvested(), position.getFeesPaid(),
                 position.getReceived(), position.getCommissionsEarned(), position.getProfitLoss(),
                 getTradesOf(user, event), getOpenOrdersOf(user, event));
     }
@@ -351,7 +355,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public List<AccountEntryDto> getAccountEntries(String userName, int fromIndex) {
+    public synchronized List<AccountEntryDto> getAccountEntries(String userName, int fromIndex) {
         User user = requireUser(userName);
         if (fromIndex < 0) {
             throw new IllegalArgumentException("fromIndex cannot be negative.");
@@ -368,7 +372,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public void depositFunds(String userName, double amount) {
+    public synchronized void depositFunds(String userName, double amount) {
         if (amount <= 0) {
             throw new IllegalArgumentException("Deposit amount must be positive.");
         }
@@ -376,7 +380,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public void buySharesLMSR(String userName, String eventName, String outcomeTitle, double sharesToBuy) {
+    public synchronized void buySharesLMSR(String userName, String eventName, String outcomeTitle, double sharesToBuy) {
         User user = requireUser(userName);
         MarketEvent event = requireEvent(eventName);
         requireActive(event);
@@ -413,7 +417,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public void openEvent(String userName, String eventName) {
+    public synchronized void openEvent(String userName, String eventName) {
         User marketMaker = requireUser(userName);
         MarketEvent event = requireEvent(eventName);
         requireMarketMaker(event, marketMaker, "open");
@@ -460,7 +464,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public void closeEvent(String userName, String eventName, String winningOutcomeTitle) {
+    public synchronized void closeEvent(String userName, String eventName, String winningOutcomeTitle) {
         User marketMaker = requireUser(userName);
         MarketEvent event = requireEvent(eventName);
         requireMarketMaker(event, marketMaker, "close");
@@ -521,7 +525,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public void addOrder(String userName, String eventName, String outcomeTitle,
+    public synchronized void addOrder(String userName, String eventName, String outcomeTitle,
                          String sideStr, double price, double shares) {
         if (price <= 0 || shares <= 0) {
             throw new IllegalArgumentException("Price and shares must be positive.");
@@ -649,7 +653,7 @@ public class EngineImpl implements EngineApi, Serializable {
     }
 
     @Override
-    public OrderBookDto getOrderBook(String eventName, String outcomeTitle) {
+    public synchronized OrderBookDto getOrderBook(String eventName, String outcomeTitle) {
         MarketEvent event = getEventByNameInternal(eventName);
         if (event == null) {
             return null;
@@ -689,28 +693,6 @@ public class EngineImpl implements EngineApi, Serializable {
             return tradeAmount * (event.getFeePercentage() / 100.0);
         }
         return 0.0;
-    }
-
-    @Override
-    public void saveStateToFile(String filePath) throws IOException {
-        String fullPath = ensureExtension(filePath);
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fullPath))) {
-            out.writeObject(this);
-        }
-    }
-
-    public static EngineImpl loadStateFromFile(String filePath) throws IOException, ClassNotFoundException {
-        String fullPath = ensureExtension(filePath);
-        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(fullPath))) {
-            return (EngineImpl) in.readObject();
-        }
-    }
-
-    private static String ensureExtension(String filePath) {
-        if (!filePath.endsWith(".dat")) {
-            return filePath + ".dat";
-        }
-        return filePath;
     }
 
     private User getUserByNameInternal(String name) {

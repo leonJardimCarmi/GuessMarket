@@ -1,6 +1,5 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -9,9 +8,7 @@ import java.util.Map;
  * A user's money flows with one event, recorded at the moment they happen.
  * A position is created on the user's first action in the event (an order, a purchase, or opening it as market maker).
  */
-public class Position implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class Position {
     // Paid into the event: shares bought (without fees) and the market maker's opening funds
     private double invested;
     private final Map<String, Double> investedByOutcome = new LinkedHashMap<>();

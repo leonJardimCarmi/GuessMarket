@@ -1,6 +1,5 @@
 package com.guessmarket.engine.model;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -9,9 +8,7 @@ import java.util.List;
  * The open orders of a single outcome, kept sorted by price-time priority.
  * The matching algorithm itself lives in {@link OrderMatcher}; this class only stores and orders the data.
  */
-public class OrderBook implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class OrderBook {
     private final List<Order> bids = new ArrayList<>();
     private final List<Order> asks = new ArrayList<>();
     private Double lastTradePrice = null;

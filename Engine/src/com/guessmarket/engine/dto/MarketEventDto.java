@@ -1,12 +1,9 @@
 package com.guessmarket.engine.dto;
 
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-public class MarketEventDto implements Serializable {
-    private static final long serialVersionUID = 1L;
-
+public class MarketEventDto {
     private final String name;
     private final String description;
     private final String status;
