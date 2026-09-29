@@ -1,7 +1,7 @@
 package com.guessmarket.engine.impl;
 
 import com.guessmarket.engine.api.EngineApi;
-import com.guessmarket.engine.dto.*;
+import com.guessmarket.dto.*;
 import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.schema.*;
 import jakarta.xml.bind.JAXBContext;

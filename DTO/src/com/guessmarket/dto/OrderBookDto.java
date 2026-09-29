@@ -1,4 +1,4 @@
-package com.guessmarket.engine.dto;
+package com.guessmarket.dto;
 
 import java.util.List;
 

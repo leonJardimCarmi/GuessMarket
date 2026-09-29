@@ -1,6 +1,6 @@
 package com.guessmarket.ui;
 
-import com.guessmarket.engine.dto.*;
+import com.guessmarket.dto.*;
 import com.guessmarket.engine.impl.EngineImpl;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;

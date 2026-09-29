@@ -1,4 +1,4 @@
-package com.guessmarket.engine.dto;
+package com.guessmarket.dto;
 
 public class TransactionDto {
     private final String buyerName;

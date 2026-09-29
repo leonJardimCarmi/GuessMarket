@@ -1,4 +1,4 @@
-package com.guessmarket.engine.dto;
+package com.guessmarket.dto;
 
 /**
  * The public view of a user, as shown to other users: name, balance and whether they are a market maker.

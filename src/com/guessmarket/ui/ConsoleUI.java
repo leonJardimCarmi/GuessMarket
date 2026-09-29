@@ -1,11 +1,11 @@
 package com.guessmarket.ui;
 
 import com.guessmarket.engine.api.EngineApi;
-import com.guessmarket.engine.dto.MarketEventDto;
-import com.guessmarket.engine.dto.OrderBookDto;
-import com.guessmarket.engine.dto.OutcomeDto;
-import com.guessmarket.engine.dto.TransactionDto;
-import com.guessmarket.engine.dto.UserDto;
+import com.guessmarket.dto.MarketEventDto;
+import com.guessmarket.dto.OrderBookDto;
+import com.guessmarket.dto.OutcomeDto;
+import com.guessmarket.dto.TransactionDto;
+import com.guessmarket.dto.UserDto;
 import com.guessmarket.engine.impl.EngineImpl;
 
 import java.util.ArrayList;
