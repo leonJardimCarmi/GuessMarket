@@ -55,7 +55,12 @@ public class UploadServlet extends ApiServlet {
             throw new IllegalArgumentException("No file was sent in the field '" + ApiParams.FILE + "'.");
         }
         String fileName = filePart.getSubmittedFileName();
-        if (fileName == null || !fileName.toLowerCase().endsWith(".xml")) {
+        // A text field has no file name: the client sent a value (often the file's path) instead of the file itself.
+        if (fileName == null) {
+            throw new IllegalArgumentException("The field '" + ApiParams.FILE
+                    + "' contains text, not a file. Send the XML file itself (not its path).");
+        }
+        if (!fileName.toLowerCase().endsWith(".xml")) {
             throw new IllegalArgumentException("Only XML files can be uploaded (the file name must end with .xml).");
         }
         return filePart;

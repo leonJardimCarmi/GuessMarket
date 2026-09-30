@@ -1,0 +1,1251 @@
+{
+  "info": {
+    "name": "Guess Market Server",
+    "description": "End-to-end tests of the Guess Market server.\nBefore every run: restart Tomcat - the server keeps its data only in memory, so a restart gives a clean state.\nUpload requests read multiple.xml from Postman's working directory (Settings > General > Working Directory = the project's test-files folder).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/GuessMarket"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Cleanup - log out a leftover session",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"logged out, or was not logged in\", () => pm.expect([200, 401]).to.include(pm.response.code));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "logout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "01 Ping (fresh server)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"server is OK\", () => pm.expect(body.status).to.eql(\"OK\"));",
+              "pm.test(\"fresh server has no events (restart Tomcat before running)\", () => pm.expect(body.events).to.eql(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ping",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ping"
+          ]
+        }
+      }
+    },
+    {
+      "name": "02 POST to ping -> 405",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 405\", () => pm.response.to.have.status(405));",
+              "pm.test(\"error mentions: POST is not supported\", () => pm.expect(pm.response.json().error).to.include(\"POST is not supported\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ping",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ping"
+          ]
+        }
+      }
+    },
+    {
+      "name": "03 Events without login -> 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"error mentions: not logged in\", () => pm.expect(pm.response.json().error).to.include(\"not logged in\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events"
+          ]
+        }
+      }
+    },
+    {
+      "name": "04 Login Dana",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"user is Dana\", () => pm.expect(body.name).to.eql(\"Dana\"));",
+              "pm.test(\"new user starts with 0\", () => pm.expect(body.balance).to.eql(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "Dana",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "05 Login again in the same session -> 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"error mentions: already logged in\", () => pm.expect(pm.response.json().error).to.include(\"already logged in\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "Dana",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "06 Deposit 'abc' -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"error mentions: must be a number\", () => pm.expect(pm.response.json().error).to.include(\"must be a number\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/me/deposit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "deposit"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "amount",
+              "value": "abc",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "07 Deposit 1000",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"balance is 1000\", () => pm.expect(pm.response.json().balance).to.eql(1000));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/me/deposit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "deposit"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "amount",
+              "value": "1000",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "08 Upload multiple.xml",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"3 events loaded\", () => pm.expect(body.events).to.have.lengthOf(3));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events/upload",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events",
+            "upload"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "multiple.xml"
+            }
+          ]
+        },
+        "description": "Reads multiple.xml from Postman's working directory (Settings > General > Working Directory = the project's test-files folder)."
+      }
+    },
+    {
+      "name": "09 Upload the same file again -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"error mentions: already exists\", () => pm.expect(pm.response.json().error).to.include(\"already exists\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events/upload",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events",
+            "upload"
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "multiple.xml"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10 All events, in upload order, not started",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const events = pm.response.json();",
+              "pm.test(\"3 events\", () => pm.expect(events).to.have.lengthOf(3));",
+              "pm.test(\"upload order kept\", () => pm.expect(events.map(e => e.name)).to.eql([\"Earth Quake on Dead Sea\", \"World Cap Winner\", \"Will it rain tomorrow ?\"]));",
+              "pm.test(\"all NOT_STARTED\", () => events.forEach(e => pm.expect(e.status).to.eql(\"NOT_STARTED\")));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/events",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "events"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11 Buy before the event is opened -> 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"error mentions: has not been opened\", () => pm.expect(pm.response.json().error).to.include(\"has not been opened\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/buy",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "buy"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "Will it rain tomorrow ?",
+              "type": "text"
+            },
+            {
+              "key": "outcome",
+              "value": "Yes",
+              "type": "text"
+            },
+            {
+              "key": "shares",
+              "value": "10",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "12 Open World Cap Winner (Order Book)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"ACTIVE\", () => pm.expect(pm.response.json().status).to.eql(\"ACTIVE\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "open"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "World Cap Winner",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13 Open Will it rain tomorrow ? (LMSR)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"ACTIVE\", () => pm.expect(pm.response.json().status).to.eql(\"ACTIVE\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/open",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "open"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "Will it rain tomorrow ?",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "14 Dana SELL 20 Argentina @ 0.55",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"one open order\", () => pm.expect(body.openOrders).to.have.lengthOf(1));",
+              "pm.test(\"it is a SELL\", () => pm.expect(body.openOrders[0].side).to.eql(\"SELL\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/order",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "order"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "World Cap Winner",
+              "type": "text"
+            },
+            {
+              "key": "outcome",
+              "value": "Argentina",
+              "type": "text"
+            },
+            {
+              "key": "side",
+              "value": "SELL",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "value": "0.55",
+              "type": "text"
+            },
+            {
+              "key": "shares",
+              "value": "20",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15 Price above d - 0.01 -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"error mentions: maximum price\", () => pm.expect(pm.response.json().error).to.include(\"maximum price\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/order",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "order"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "World Cap Winner",
+              "type": "text"
+            },
+            {
+              "key": "outcome",
+              "value": "Argentina",
+              "type": "text"
+            },
+            {
+              "key": "side",
+              "value": "BUY",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "value": "1.00",
+              "type": "text"
+            },
+            {
+              "key": "shares",
+              "value": "1",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "16 Logout Dana",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "logout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "17 Login Leon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"user is Leon\", () => pm.expect(pm.response.json().name).to.eql(\"Leon\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "Leon",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "18 Leon deposits 500",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/me/deposit",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "deposit"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "amount",
+              "value": "500",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "19 Leon BUY 25 Argentina @ 0.60 (20 traded with Dana, 5 wait)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"bought from Dana\", () => pm.expect(body.trades[0].sellerName).to.eql(\"Dana\"));",
+              "pm.test(\"holds 20 Argentina\", () => pm.expect(body.holdings.Argentina).to.eql(20));",
+              "pm.test(\"5 shares still waiting\", () => pm.expect(body.openOrders[0].remainingShares).to.eql(5));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/order",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "order"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "World Cap Winner",
+              "type": "text"
+            },
+            {
+              "key": "outcome",
+              "value": "Argentina",
+              "type": "text"
+            },
+            {
+              "key": "side",
+              "value": "BUY",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "value": "0.60",
+              "type": "text"
+            },
+            {
+              "key": "shares",
+              "value": "25",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "20 Order book statistics",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const book = pm.response.json();",
+              "pm.test(\"last trade at 0.55\", () => pm.expect(book.lastPrice).to.eql(0.55));",
+              "pm.test(\"best bid is 0.6\", () => pm.expect(book.bestBid).to.eql(0.6));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/orderbook?event=World Cap Winner&outcome=Argentina",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "orderbook"
+          ],
+          "query": [
+            {
+              "key": "event",
+              "value": "World Cap Winner"
+            },
+            {
+              "key": "outcome",
+              "value": "Argentina"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "21 Leon buys 10 Yes in LMSR",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"one trade\", () => pm.expect(body.trades).to.have.lengthOf(1));",
+              "pm.test(\"no fee on purchase (on-close event)\", () => pm.expect(body.trades[0].feePaid).to.eql(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/buy",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "buy"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "Will it rain tomorrow ?",
+              "type": "text"
+            },
+            {
+              "key": "outcome",
+              "value": "Yes",
+              "type": "text"
+            },
+            {
+              "key": "shares",
+              "value": "10",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "22 Leon's account entries",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const entries = pm.response.json();",
+              "pm.test(\"deposit + 2 purchases\", () => pm.expect(entries).to.have.lengthOf(3));",
+              "pm.test(\"first entry is the deposit\", () => pm.expect(entries[0].description).to.eql(\"Deposit\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/me/account",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "account"
+          ]
+        }
+      }
+    },
+    {
+      "name": "23 Delta fetch: entries from index 2",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const entries = pm.response.json();",
+              "pm.test(\"only the newest entry\", () => pm.expect(entries).to.have.lengthOf(1));",
+              "pm.test(\"it is the LMSR purchase\", () => pm.expect(entries[0].description).to.include(\"Yes\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/me/account?from=2",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "account"
+          ],
+          "query": [
+            {
+              "key": "from",
+              "value": "2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "24 Leon tries to close Dana's event -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"error mentions: Only the market maker\", () => pm.expect(pm.response.json().error).to.include(\"Only the market maker\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "World Cap Winner",
+              "type": "text"
+            },
+            {
+              "key": "winner",
+              "value": "Argentina",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "25 Users list",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const users = pm.response.json();",
+              "pm.test(\"2 users\", () => pm.expect(users).to.have.lengthOf(2));",
+              "pm.test(\"Dana is a market maker\", () => pm.expect(users.find(u => u.name === \"Dana\").marketMaker).to.eql(true));",
+              "pm.test(\"Leon is not\", () => pm.expect(users.find(u => u.name === \"Leon\").marketMaker).to.eql(false));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "users"
+          ]
+        }
+      }
+    },
+    {
+      "name": "26 Logout Leon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "logout"
+          ]
+        }
+      }
+    },
+    {
+      "name": "27 Login as 'dana' (lowercase) resumes Dana",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"same user, original spelling\", () => pm.expect(body.name).to.eql(\"Dana\"));",
+              "pm.test(\"kept her money\", () => pm.expect(body.balance).to.be.above(700));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "dana",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "28 Dana closes World Cap Winner, winner Argentina",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const event = pm.response.json();",
+              "pm.test(\"CLOSED\", () => pm.expect(event.status).to.eql(\"CLOSED\"));",
+              "pm.test(\"winner recorded\", () => pm.expect(event.winningOutcome).to.eql(\"Argentina\"));",
+              "pm.test(\"event account emptied\", () => pm.expect(event.eventBalance).to.be.closeTo(0, 0.000001));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/close",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "close"
+          ]
+        },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "event",
+              "value": "World Cap Winner",
+              "type": "text"
+            },
+            {
+              "key": "winner",
+              "value": "Argentina",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "29 Dana's participation after closing",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const details = pm.response.json();",
+              "pm.test(\"event is CLOSED\", () => pm.expect(details.status).to.eql(\"CLOSED\"));",
+              "pm.test(\"she is the market maker\", () => pm.expect(details.marketMaker).to.eql(true));",
+              "pm.test(\"profit/loss is reported\", () => pm.expect(details.profitLoss).to.be.a(\"number\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/me/event?event=World Cap Winner",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "me",
+            "event"
+          ],
+          "query": [
+            {
+              "key": "event",
+              "value": "World Cap Winner"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "30 Ping: 1 user online, 3 events",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test(\"3 events\", () => pm.expect(body.events).to.eql(3));",
+              "pm.test(\"only Dana is online\", () => pm.expect(body.onlineUsers).to.eql(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ping",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ping"
+          ]
+        }
+      }
+    },
+    {
+      "name": "31 Final logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/logout",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "logout"
+          ]
+        }
+      }
+    }
+  ]
+}
