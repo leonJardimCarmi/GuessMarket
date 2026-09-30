@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Servlets are declared with @WebServlet annotations; this descriptor only names the application. -->
+<!-- Servlets and listeners are declared with annotations (@WebServlet, @WebListener). -->
 <web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0">
     <display-name>Guess Market</display-name>
+
+    <session-config>
+        <!-- Minutes without any request before a session ends. Active clients poll every ~0.5 second,
+             so only a client that was closed without logging out reaches it - and its user name is freed. -->
+        <session-timeout>5</session-timeout>
+    </session-config>
 </web-app>
