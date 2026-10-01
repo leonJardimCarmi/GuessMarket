@@ -23,14 +23,18 @@ import java.net.URL;
 public class ClientContext {
     private static final String LOGIN_SCREEN = "/com/guessmarket/client/ui/login/login.fxml";
     private static final String MAIN_SCREEN = "/com/guessmarket/client/ui/main/main.fxml";
+    private static final String BASE_STYLESHEET = "/com/guessmarket/client/css/client.css";
     private static final String SESSION_ENDED = "Your session has ended. Please log in again.";
 
     private final Stage stage;
     private final ServerApi api = new ServerApi();
     private String userName; // null while nobody is logged in
+    private Theme theme;
 
+    // The stage must already have its scene.
     public ClientContext(Stage stage) {
         this.stage = stage;
+        applyTheme(Theme.DEFAULT);
     }
 
     public ServerApi api() {
@@ -43,6 +47,19 @@ public class ClientContext {
 
     public boolean isLoggedIn() {
         return userName != null;
+    }
+
+    public Theme theme() {
+        return theme;
+    }
+
+    // The theme comes first and client.css after it: on equal selectors the later stylesheet wins,
+    // so the client's own classes (e.g. the red error text) keep their colors in every theme.
+    public void applyTheme(Theme theme) {
+        this.theme = theme;
+        stage.getScene().getStylesheets().setAll(
+                resource(theme.stylesheetPath()).toExternalForm(),
+                resource(BASE_STYLESHEET).toExternalForm());
     }
 
     // message: shown on the login screen (e.g. why the user was sent back to it); null for none.
@@ -92,11 +109,7 @@ public class ClientContext {
 
     // Loads a screen's FXML, puts it in the window and returns its controller.
     private <C> C showScreen(String fxmlPath) {
-        URL location = ClientContext.class.getResource(fxmlPath);
-        if (location == null) {
-            throw new IllegalStateException("Screen file not found: " + fxmlPath);
-        }
-        FXMLLoader loader = new FXMLLoader(location);
+        FXMLLoader loader = new FXMLLoader(resource(fxmlPath));
         try {
             Parent root = loader.load();
             stage.getScene().setRoot(root);
@@ -104,5 +117,13 @@ public class ClientContext {
             throw new UncheckedIOException("Could not load the screen " + fxmlPath, e);
         }
         return loader.getController();
+    }
+
+    private static URL resource(String path) {
+        URL location = ClientContext.class.getResource(path);
+        if (location == null) {
+            throw new IllegalStateException("Resource not found: " + path);
+        }
+        return location;
     }
 }

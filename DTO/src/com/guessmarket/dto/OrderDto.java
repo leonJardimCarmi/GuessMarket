@@ -1,6 +1,10 @@
 package com.guessmarket.dto;
 
 public class OrderDto {
+    // The values of side, as the server sends them (the names of the engine's OrderSide enum).
+    public static final String SIDE_BUY = "BUY";
+    public static final String SIDE_SELL = "SELL";
+
     private final String id;
     private final String userName;
     private final String eventName;

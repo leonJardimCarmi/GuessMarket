@@ -4,6 +4,16 @@ import java.util.Collections;
 import java.util.List;
 
 public class MarketEventDto {
+    // The values of status, tradingMethod and feeType, as the server sends them (the names of the engine's enums).
+    // static fields are not part of the JSON (Gson skips them), so the DTO stays plain data.
+    public static final String STATUS_NOT_STARTED = "NOT_STARTED";
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_CLOSED = "CLOSED";
+    public static final String METHOD_LMSR = "LMSR";
+    public static final String METHOD_ORDER_BOOK = "ORDER_BOOK";
+    public static final String FEE_AT_PURCHASE = "AT_PURCHASE";
+    public static final String FEE_AT_CLOSE = "AT_RESOLUTION";
+
     private final String name;
     private final String description;
     private final String status;
@@ -91,6 +101,10 @@ public class MarketEventDto {
 
     public double getBParameter() {
         return b;
+    }
+
+    public double getDParameter() {
+        return d;
     }
 
 }

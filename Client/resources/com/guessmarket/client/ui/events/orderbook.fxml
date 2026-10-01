@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- One outcome's order book: statistics and the waiting orders. Included twice in events.fxml (binary events). -->
+<VBox spacing="6" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.guessmarket.client.ui.events.OrderBookController">
+    <Label fx:id="titleLabel" styleClass="section-title"/>
+
+    <FlowPane hgap="12" vgap="4" styleClass="stats-bar">
+        <Label text="LAST:"/>
+        <Label fx:id="lastLabel" styleClass="stat-value"/>
+        <Label text="BID:"/>
+        <Label fx:id="bidLabel" styleClass="stat-value"/>
+        <Label text="ASK:"/>
+        <Label fx:id="askLabel" styleClass="stat-value"/>
+        <Label text="MID:"/>
+        <Label fx:id="midLabel" styleClass="stat-value"/>
+        <Label text="SPREAD:"/>
+        <Label fx:id="spreadLabel" styleClass="stat-value"/>
+    </FlowPane>
+
+    <TableView fx:id="ordersTable" prefHeight="200" minHeight="120">
+        <columns>
+            <TableColumn fx:id="sideColumn" text="Side"/>
+            <TableColumn fx:id="userColumn" text="User"/>
+            <TableColumn fx:id="sharesColumn" text="Shares"/>
+            <TableColumn fx:id="priceColumn" text="Price"/>
+        </columns>
+        <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+        </columnResizePolicy>
+        <placeholder>
+            <Label text="No waiting orders"/>
+        </placeholder>
+    </TableView>
+</VBox>

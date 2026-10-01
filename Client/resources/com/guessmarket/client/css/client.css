@@ -1,18 +1,80 @@
-/* Styles shared by all the client's screens. */
+/* Styles shared by all the client's screens. Loaded after the theme, so these win over the theme's rules.
+   No fixed colors here: lines and boxes are derived from the theme's -fx-base, and green / red come from
+   -gm-positive / -gm-negative, which every theme defines - so everything fits every theme. */
+
+/* ===== Frame ===== */
+
+.header {
+    -fx-border-color: transparent transparent derive(-fx-base, -25%) transparent;
+}
+
+.status-bar {
+    -fx-border-color: derive(-fx-base, -25%) transparent transparent transparent;
+}
 
 .title {
     -fx-font-size: 22px;
     -fx-font-weight: bold;
 }
 
+/* ===== Messages ===== */
+
 .status-ok {
-    -fx-text-fill: #2e7d32;
+    -fx-text-fill: -gm-positive;
 }
 
-.status-error {
-    -fx-text-fill: #c62828;
-}
-
+.status-error,
 .error-text {
-    -fx-text-fill: #c62828;
+    -fx-text-fill: -gm-negative;
+}
+
+/* ===== Events tab ===== */
+
+.filter-label {
+    -fx-min-width: 55px;
+}
+
+.event-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.section-title {
+    -fx-font-weight: bold;
+}
+
+.fact {
+    -fx-padding: 6 10 6 10;
+    -fx-border-color: derive(-fx-base, -25%);
+    -fx-border-radius: 4px;
+}
+
+.fact-caption {
+    -fx-font-size: 11px;
+    -fx-opacity: 0.75;
+}
+
+.fact-value,
+.stat-value {
+    -fx-font-weight: bold;
+}
+
+.stats-bar {
+    -fx-padding: 6px;
+    -fx-border-color: derive(-fx-base, -25%);
+    -fx-border-radius: 4px;
+}
+
+/* ===== Tables ===== */
+
+.number-cell {
+    -fx-alignment: CENTER-RIGHT;
+}
+
+.side-buy {
+    -fx-text-fill: -gm-positive;
+}
+
+.side-sell {
+    -fx-text-fill: -gm-negative;
 }
