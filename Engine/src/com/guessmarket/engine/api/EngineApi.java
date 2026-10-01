@@ -3,6 +3,7 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.AccountEntryDto;
 import com.guessmarket.dto.MarketEventDto;
 import com.guessmarket.dto.OrderBookDto;
+import com.guessmarket.dto.ParticipantDto;
 import com.guessmarket.dto.UserDto;
 import com.guessmarket.dto.UserEventDetailsDto;
 import com.guessmarket.dto.UserSummaryDto;
@@ -39,6 +40,8 @@ public interface EngineApi {
     void addOrder(String userName, String eventName, String outcomeTitle, String sideStr, double price, double shares);
 
     OrderBookDto getOrderBook(String eventName, String outcomeTitle);
+
+    List<ParticipantDto> getEventParticipants(String eventName);
 
     void openEvent(String userName, String eventName);
 

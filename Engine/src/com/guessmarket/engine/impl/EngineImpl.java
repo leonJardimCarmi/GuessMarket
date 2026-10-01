@@ -32,16 +32,7 @@ public class EngineImpl implements EngineApi {
     private MarketEventDto createDtoEvent(MarketEvent event) {
         List<OutcomeDto> outcomeDtos = new ArrayList<>();
         for (Outcome outcome : event.getOutcomes()) {
-            double currentPrice = 0.0;
-            if (event.getTradingMethod() == MarketEvent.TradingMethod.LMSR) {
-                currentPrice = LmsrCalculator.calculatePrice(event.getOutcomes(), outcome.getTitle(), event.getB());
-            } else if (event.getTradingMethod() == MarketEvent.TradingMethod.ORDER_BOOK) {
-                OrderBook orderBook = event.getOrderBook(outcome.getTitle());
-                if (orderBook != null && orderBook.getLastTradePrice() != null) {
-                    currentPrice = orderBook.getLastTradePrice();
-                }
-            }
-            outcomeDtos.add(new OutcomeDto(outcome.getTitle(), outcome.getSharesBought(), currentPrice));
+            outcomeDtos.add(new OutcomeDto(outcome.getTitle(), outcome.getSharesBought(), currentPriceOf(event, outcome)));
         }
 
         List<TransactionDto> transactionDtos = new ArrayList<>();
@@ -86,6 +77,20 @@ public class EngineImpl implements EngineApi {
         }
         return new UserDto(user.getName(), user.getAccount().getBalance(), user.getAccount().getReserved(),
                 holdings, getMarketMakerEventNames(user), user.getParticipatedEventNames());
+    }
+
+    // What one share of the outcome is worth now:
+    // a closed event pays its final value (winner: 1 or d, loser: 0); LMSR uses its price formula;
+    // an Order Book uses its last trade (0 while nothing was traded yet).
+    private static double currentPriceOf(MarketEvent event, Outcome outcome) {
+        if (event.getStatus() == MarketEvent.EventStatus.CLOSED) {
+            return outcome.getTitle().equals(event.getWinningOutcome()) ? event.getPayoutPerShare() : 0.0;
+        }
+        if (event.getTradingMethod() == MarketEvent.TradingMethod.LMSR) {
+            return LmsrCalculator.calculatePrice(event.getOutcomes(), outcome.getTitle(), event.getB());
+        }
+        OrderBook orderBook = event.getOrderBook(outcome.getTitle());
+        return (orderBook != null && orderBook.getLastTradePrice() != null) ? orderBook.getLastTradePrice() : 0.0;
     }
 
     private static TransactionDto toTransactionDto(Transaction transaction) {
@@ -650,6 +655,34 @@ public class EngineImpl implements EngineApi {
                 }
             }
         }
+    }
+
+    // Everyone who took part in the event (has a position in it), in registration order.
+    @Override
+    public synchronized List<ParticipantDto> getEventParticipants(String eventName) {
+        MarketEvent event = requireEvent(eventName);
+        List<ParticipantDto> participants = new ArrayList<>();
+        for (User user : usersMap.values()) {
+            if (user.getPosition(event.getName()) != null) {
+                participants.add(toParticipantDto(event, user));
+            }
+        }
+        return participants;
+    }
+
+    private static ParticipantDto toParticipantDto(MarketEvent event, User user) {
+        Map<String, Double> holdings = new LinkedHashMap<>();
+        Map<String, Double> holdingValues = new LinkedHashMap<>();
+        double totalValue = 0.0;
+        for (Outcome outcome : event.getOutcomes()) {
+            double shares = user.getSharesCount(event.getName(), outcome.getTitle());
+            double value = shares * currentPriceOf(event, outcome);
+            holdings.put(outcome.getTitle(), shares);
+            holdingValues.put(outcome.getTitle(), value);
+            totalValue += value;
+        }
+        return new ParticipantDto(user.getName(), user.getName().equals(event.getMarketMakerName()),
+                holdings, holdingValues, totalValue);
     }
 
     @Override

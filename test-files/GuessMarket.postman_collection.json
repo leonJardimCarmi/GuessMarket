@@ -845,6 +845,47 @@
       }
     },
     {
+      "name": "20b Participants of World Cap Winner",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const people = pm.response.json();",
+              "const dana = people.find(p => p.name === \"Dana\");",
+              "const leon = people.find(p => p.name === \"Leon\");",
+              "pm.test(\"2 participants\", () => pm.expect(people).to.have.lengthOf(2));",
+              "pm.test(\"Dana is the market maker\", () => pm.expect(dana.marketMaker).to.eql(true));",
+              "pm.test(\"Dana holds 80 Argentina (100 from opening - 20 sold)\", () => pm.expect(dana.holdings.Argentina).to.eql(80));",
+              "pm.test(\"Leon's 20 Argentina are worth 20 * 0.55\", () => pm.expect(leon.holdingValues.Argentina).to.be.closeTo(11, 0.000001));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/participants?event=World Cap Winner",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "participants"
+          ],
+          "query": [
+            {
+              "key": "event",
+              "value": "World Cap Winner"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "21 Leon buys 10 Yes in LMSR",
       "event": [
         {
@@ -1147,6 +1188,43 @@
               "key": "winner",
               "value": "Argentina",
               "type": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "28b Participants after closing: final values",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "const people = pm.response.json();",
+              "pm.test(\"winning shares are worth the payout (d = 1)\", () => pm.expect(people.find(p => p.name === \"Dana\").holdingValues.Argentina).to.eql(80));",
+              "pm.test(\"losing shares are worth 0\", () => pm.expect(people.find(p => p.name === \"Dana\").holdingValues.Spain).to.eql(0));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/event/participants?event=World Cap Winner",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "event",
+            "participants"
+          ],
+          "query": [
+            {
+              "key": "event",
+              "value": "World Cap Winner"
             }
           ]
         }

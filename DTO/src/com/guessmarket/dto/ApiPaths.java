@@ -21,6 +21,7 @@ public abstract class ApiPaths {
     public static final String OPEN_EVENT = "/event/open";
     public static final String CLOSE_EVENT = "/event/close";
     public static final String ORDER_BOOK = "/event/orderbook";
+    public static final String PARTICIPANTS = "/event/participants";
     public static final String BUY = "/event/buy";
     public static final String ORDER = "/event/order";
 
