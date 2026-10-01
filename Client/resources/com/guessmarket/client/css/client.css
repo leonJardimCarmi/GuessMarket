@@ -1,0 +1,18 @@
+/* Styles shared by all the client's screens. */
+
+.title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.status-ok {
+    -fx-text-fill: #2e7d32;
+}
+
+.status-error {
+    -fx-text-fill: #c62828;
+}
+
+.error-text {
+    -fx-text-fill: #c62828;
+}
