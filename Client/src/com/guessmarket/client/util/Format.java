@@ -17,6 +17,11 @@ public abstract class Format {
         return String.format("%.2f", amount);
     }
 
+    // With a sign, for profit / loss: "+12.50" or "-3.00".
+    public static String signed(double amount) {
+        return String.format("%+.2f", amount);
+    }
+
     // For values that may be missing, like order book statistics before the first trade.
     public static String optional(Double value) {
         return value == null ? NO_VALUE : money(value);

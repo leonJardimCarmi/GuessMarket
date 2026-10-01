@@ -29,7 +29,7 @@
 
     <!-- Each tab is its own FXML with its own controller; fx:id "events" injects eventsController -->
     <center>
-        <TabPane tabClosingPolicy="UNAVAILABLE">
+        <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE">
             <Tab text="Events">
                 <content>
                     <fx:include fx:id="events" source="/com/guessmarket/client/ui/events/events.fxml"/>

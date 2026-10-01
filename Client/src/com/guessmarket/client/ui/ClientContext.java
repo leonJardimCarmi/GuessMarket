@@ -5,6 +5,7 @@ import com.guessmarket.client.http.ServerException;
 import com.guessmarket.client.ui.login.LoginController;
 import com.guessmarket.client.ui.main.MainController;
 import com.guessmarket.client.util.Async;
+import com.guessmarket.client.util.Poller;
 import com.guessmarket.dto.UserDto;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -15,6 +16,8 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URL;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * What every screen shares: the connection to the server, the logged-in user, and moving between screens.
@@ -30,6 +33,7 @@ public class ClientContext {
     private final ServerApi api = new ServerApi();
     private String userName; // null while nobody is logged in
     private Theme theme;
+    private Poller poller;   // the automatic refresh; runs only while the main screen is shown
 
     // The stage must already have its scene.
     public ClientContext(Stage stage) {
@@ -64,6 +68,7 @@ public class ClientContext {
 
     // message: shown on the login screen (e.g. why the user was sent back to it); null for none.
     public void showLogin(String message) {
+        stopPolling();
         userName = null;
         LoginController login = showScreen(LOGIN_SCREEN);
         login.init(this, message);
@@ -75,13 +80,29 @@ public class ClientContext {
         main.init(this, user);
     }
 
+    // Called by the main screen. round: fetches on the poller's thread and returns the screen update.
+    public void startPolling(Supplier<Runnable> round, Consumer<ServerException> onError) {
+        stopPolling();
+        poller = new Poller(round, onError);
+        poller.start();
+    }
+
+    private void stopPolling() {
+        if (poller != null) {
+            poller.stop();
+            poller = null;
+        }
+    }
+
     // Logs out on the server; whatever the answer, this client returns to the login screen.
     public void logout() {
+        stopPolling(); // no refresh may run during the logout (it would get "not logged in")
         Async.run(api::logout, () -> showLogin(null), error -> showLogin(null));
     }
 
     // Called when the application closes: frees the user name right away (instead of after the session timeout).
     public void logoutOnExit() {
+        stopPolling();
         if (isLoggedIn()) {
             try {
                 api.logout();
@@ -93,10 +114,16 @@ public class ClientContext {
 
     // The common reaction to a failed request: an ended session returns to the login screen, anything else is shown.
     public void handleError(ServerException error) {
+        handleError(error, this::showError);
+    }
+
+    // For actions with their own message area (e.g. "not enough money" next to the Buy button):
+    // an ended session still returns to the login screen, any other error is shown in that area.
+    public void handleError(ServerException error, Consumer<String> showMessage) {
         if (error.isUnauthorized() && isLoggedIn()) {
             showLogin(SESSION_ENDED);
         } else {
-            showError(error.getMessage());
+            showMessage.accept(error.getMessage());
         }
     }
 

@@ -12,6 +12,7 @@ import com.guessmarket.dto.UserDto;
 import com.guessmarket.dto.UserEventDetailsDto;
 import com.guessmarket.dto.UserSummaryDto;
 
+import java.io.File;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ public class ServerApi {
     private static final Type USER_LIST = new TypeToken<List<UserSummaryDto>>() { }.getType();
     private static final Type ENTRY_LIST = new TypeToken<List<AccountEntryDto>>() { }.getType();
     private static final Type PARTICIPANT_LIST = new TypeToken<List<ParticipantDto>>() { }.getType();
+    private static final String UPLOAD_MESSAGE = "message"; // the upload answer is {"message": ..., "events": [...]}
 
     private final ServerConnection connection = new ServerConnection();
 
@@ -74,6 +76,12 @@ public class ServerApi {
 
     public List<MarketEventDto> getEvents() {
         return connection.get(ApiPaths.EVENTS, Map.of(), EVENT_LIST);
+    }
+
+    // Returns the server's message, e.g. "File 'x.xml' loaded successfully: 3 event(s) added, ...".
+    public String uploadEventsFile(File file) {
+        JsonObject answer = connection.upload(ApiPaths.UPLOAD, ApiParams.FILE, file, JsonObject.class);
+        return answer.get(UPLOAD_MESSAGE).getAsString();
     }
 
     public MarketEventDto getEvent(String eventName) {

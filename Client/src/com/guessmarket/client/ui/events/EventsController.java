@@ -5,6 +5,7 @@ import com.guessmarket.client.ui.ClientContext;
 import com.guessmarket.client.util.Async;
 import com.guessmarket.client.util.Format;
 import com.guessmarket.client.util.Tables;
+import com.guessmarket.client.util.Views;
 import com.guessmarket.dto.MarketEventDto;
 import com.guessmarket.dto.OrderBookDto;
 import com.guessmarket.dto.OutcomeDto;
@@ -74,7 +75,8 @@ public class EventsController {
     private final FilteredList<MarketEventDto> shownEvents = new FilteredList<>(allEvents);
 
     private ClientContext context;
-    private String selectedEventName; // kept by name: a refresh brings new objects for the same events
+    // Kept by name: a refresh brings new objects for the same events. volatile: pull() reads it on another thread.
+    private volatile String selectedEventName;
     private String detailsEventName;  // the event the details area was last filled for
     private boolean updatingList;     // while true, the selection listener ignores the table's temporary changes
 
@@ -121,11 +123,24 @@ public class EventsController {
         refresh();
     }
 
-    // Reloads the events from the server. The automatic refresh (stage 5.7) will call it too.
+    // Reloads now, in the background (the Refresh button, an action in the Account tab, switching to this tab).
     public void refresh() {
-        Async.run(() -> context.api().getEvents(),
-                events -> updateList(() -> allEvents.setAll(events)),
-                context::handleError);
+        Async.run(this::pull, Runnable::run, context::handleError);
+    }
+
+    // Fetches the events and the selected event's participants and order books. Runs on a background thread
+    // (Async or the poller); returns the screen update, which must run on the JavaFX thread.
+    public Runnable pull() {
+        List<MarketEventDto> events = context.api().getEvents();
+        String selectedName = selectedEventName;
+        MarketEventDto selected = findByName(events, selectedName);
+        LiveDetails live = selected == null ? null : fetchLiveDetails(selected);
+        return () -> {
+            updateList(() -> allEvents.setAll(events));
+            if (live != null && selectedName.equals(selectedEventName)) { // still the same event on screen
+                showLiveDetails(live);
+            }
+        };
     }
 
     @FXML
@@ -142,13 +157,14 @@ public class EventsController {
                         && allows(feeFilter, event.getFeeType())));
     }
 
-    // Changes the list, then selects the same event again by its name (or nothing, if it is no longer shown).
-    // Replacing a table's items moves its selection around, so the selection listener is muted meanwhile.
+    // Changes the list, then selects the same event again by its name (or nothing, if it is no longer shown)
+    // and shows its fresh details. Replacing a table's items moves its selection around,
+    // so the selection listener is muted meanwhile.
     private void updateList(Runnable change) {
         updatingList = true;
         try {
             change.run();
-            MarketEventDto selected = findShown(selectedEventName);
+            MarketEventDto selected = findByName(shownEvents, selectedEventName);
             if (selected == null) {
                 eventsTable.getSelectionModel().clearSelection();
             } else {
@@ -157,19 +173,25 @@ public class EventsController {
         } finally {
             updatingList = false;
         }
-        onEventSelected(eventsTable.getSelectionModel().getSelectedItem());
+        MarketEventDto selected = eventsTable.getSelectionModel().getSelectedItem();
+        selectedEventName = selected == null ? null : selected.getName();
+        showDetails(selected);
     }
 
+    // The user selected an event (mouse or keyboard): show it at once, and load its participants and books.
     private void onEventSelected(MarketEventDto event) {
         if (updatingList) {
             return; // updateList() selects the event again when it finishes
         }
         selectedEventName = event == null ? null : event.getName();
         showDetails(event);
+        if (event != null) {
+            loadLiveDetails(event);
+        }
     }
 
-    private MarketEventDto findShown(String eventName) {
-        for (MarketEventDto event : shownEvents) {
+    private static MarketEventDto findByName(List<MarketEventDto> events, String eventName) {
+        for (MarketEventDto event : events) {
             if (event.getName().equals(eventName)) {
                 return event;
             }
@@ -199,12 +221,12 @@ public class EventsController {
     // --- The details ---
 
     private void showDetails(MarketEventDto event) {
-        setShown(selectHint, event == null);
-        setShown(detailsBox, event != null);
+        Views.setShown(selectHint, event == null);
+        Views.setShown(detailsBox, event != null);
         if (event == null) {
             return;
         }
-        boolean orderBook = MarketEventDto.METHOD_ORDER_BOOK.equals(event.getTradingMethod());
+        boolean orderBook = isOrderBook(event);
 
         if (!event.getName().equals(detailsEventName)) {
             // Another event than before: drop the previous one's data before the new data arrives.
@@ -220,42 +242,33 @@ public class EventsController {
         factsPane.getChildren().setAll(factsOf(event, orderBook));
         outcomesTable.getItems().setAll(event.getOutcomes());
         historyTable.getItems().setAll(event.getTransactions().reversed()); // newest first
-        setShown(orderBooksBox, orderBook);
+        Views.setShown(orderBooksBox, orderBook);
+    }
 
-        loadLiveDetails(event, orderBook);
+    private static boolean isOrderBook(MarketEventDto event) {
+        return MarketEventDto.METHOD_ORDER_BOOK.equals(event.getTradingMethod());
     }
 
     private List<Node> factsOf(MarketEventDto event, boolean orderBook) {
         List<Node> facts = new ArrayList<>();
-        facts.add(fact("Status", Format.status(event.getStatus())));
+        facts.add(Views.fact("Status", Format.status(event.getStatus())));
         if (event.getWinningOutcome() != null) {
-            facts.add(fact("Winner", event.getWinningOutcome()));
+            facts.add(Views.fact("Winner", event.getWinningOutcome()));
         }
-        facts.add(fact("Method", Format.method(event.getTradingMethod())));
-        facts.add(fact("Market maker", marketMakerText(event)));
-        facts.add(fact("Fee", Format.fee(event)));
-        facts.add(fact("Event account", Format.money(event.getEventBalance())));
-        facts.add(fact("Fees collected", Format.money(event.getTotalFeesCollected())));
+        facts.add(Views.fact("Method", Format.method(event.getTradingMethod())));
+        facts.add(Views.fact("Market maker", marketMakerText(event)));
+        facts.add(Views.fact("Fee", Format.fee(event)));
+        facts.add(Views.fact("Event account", Format.money(event.getEventBalance())));
+        facts.add(Views.fact("Fees collected", Format.money(event.getTotalFeesCollected())));
         facts.add(orderBook
-                ? fact("Winning share pays (d)", Format.money(event.getDParameter()))
-                : fact("Liquidity (b)", Format.money(event.getBParameter())));
+                ? Views.fact("Winning share pays (d)", Format.money(event.getDParameter()))
+                : Views.fact("Liquidity (b)", Format.money(event.getBParameter())));
         return facts;
     }
 
     private String marketMakerText(MarketEventDto event) {
         String marketMaker = event.getMarketMakerName();
         return context.userName().equalsIgnoreCase(marketMaker) ? marketMaker + " (you)" : marketMaker;
-    }
-
-    // A small box: the caption above, the value below.
-    private static Node fact(String caption, String value) {
-        Label captionLabel = new Label(caption);
-        captionLabel.getStyleClass().add("fact-caption");
-        Label valueLabel = new Label(value);
-        valueLabel.getStyleClass().add("fact-value");
-        VBox box = new VBox(2, captionLabel, valueLabel);
-        box.getStyleClass().add("fact");
-        return box;
     }
 
     // The columns depend on the event's outcomes: under each outcome's name, the shares held and their value.
@@ -286,16 +299,9 @@ public class EventsController {
         participantsTable.getColumns().setAll(columns);
     }
 
-    // Participants and order books are not part of the event's DTO, so they come in separate requests,
-    // done together in one background job. Events are binary, so an Order Book event has exactly two books.
-    private void loadLiveDetails(MarketEventDto event, boolean orderBook) {
-        ServerApi api = context.api();
+    private void loadLiveDetails(MarketEventDto event) {
         String name = event.getName();
-        List<OutcomeDto> outcomes = event.getOutcomes();
-        Async.run(() -> new LiveDetails(
-                        api.getParticipants(name),
-                        orderBook ? api.getOrderBook(name, outcomes.get(0).getTitle()) : null,
-                        orderBook ? api.getOrderBook(name, outcomes.get(1).getTitle()) : null),
+        Async.run(() -> fetchLiveDetails(event),
                 details -> {
                     if (name.equals(selectedEventName)) { // the user may have chosen another event meanwhile
                         showLiveDetails(details);
@@ -304,18 +310,25 @@ public class EventsController {
                 context::handleError);
     }
 
+    // Participants and order books are not part of the event's DTO, so they come in separate requests
+    // (on a background thread). Events are binary, so an Order Book event has exactly two books.
+    private LiveDetails fetchLiveDetails(MarketEventDto event) {
+        ServerApi api = context.api();
+        String name = event.getName();
+        List<OutcomeDto> outcomes = event.getOutcomes();
+        boolean orderBook = isOrderBook(event);
+        return new LiveDetails(
+                api.getParticipants(name),
+                orderBook ? api.getOrderBook(name, outcomes.get(0).getTitle()) : null,
+                orderBook ? api.getOrderBook(name, outcomes.get(1).getTitle()) : null);
+    }
+
     private void showLiveDetails(LiveDetails details) {
         participantsTable.getItems().setAll(details.participants());
         if (details.firstBook() != null) {
             firstBookController.show(details.firstBook());
             secondBookController.show(details.secondBook());
         }
-    }
-
-    // managed=false also frees the node's space, so a hidden part leaves no gap.
-    private static void setShown(Node node, boolean shown) {
-        node.setVisible(shown);
-        node.setManaged(shown);
     }
 
     // What one background job brings back together. The books are null for an LMSR event.

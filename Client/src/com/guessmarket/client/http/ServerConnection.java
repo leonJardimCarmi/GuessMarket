@@ -7,10 +7,14 @@ import okhttp3.Cookie;
 import okhttp3.CookieJar;
 import okhttp3.FormBody;
 import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -28,6 +32,7 @@ import java.util.logging.Logger;
 public class ServerConnection {
     // The grader runs the server on this machine; the context path is the WAR's name.
     public static final String BASE_URL = "http://localhost:8080/GuessMarket";
+    private static final MediaType XML = MediaType.get("application/xml");
 
     private final SessionCookieJar cookieJar = new SessionCookieJar();
     private final OkHttpClient client;
@@ -51,6 +56,16 @@ public class ServerConnection {
         FormBody.Builder body = new FormBody.Builder();
         form.forEach(body::add);
         return execute(new Request.Builder().url(BASE_URL + path).post(body.build()).build(), resultType);
+    }
+
+    // Sends a file the way a browser's upload form does (multipart/form-data): the file's content and its name.
+    public <T> T upload(String path, String fieldName, File file, Type resultType) {
+        RequestBody fileContent = RequestBody.create(file, XML);
+        MultipartBody body = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart(fieldName, file.getName(), fileContent)
+                .build();
+        return execute(new Request.Builder().url(BASE_URL + path).post(body).build(), resultType);
     }
 
     // Forgets the session cookie (after logging out).

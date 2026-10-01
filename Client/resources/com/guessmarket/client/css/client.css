@@ -65,6 +65,14 @@
     -fx-border-radius: 4px;
 }
 
+/* ===== Account tab ===== */
+
+.actions-box {
+    -fx-padding: 8px;
+    -fx-border-color: derive(-fx-base, -25%);
+    -fx-border-radius: 4px;
+}
+
 /* ===== Tables ===== */
 
 .number-cell {
