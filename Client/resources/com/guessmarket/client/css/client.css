@@ -41,6 +41,7 @@
 
 .section-title {
     -fx-font-weight: bold;
+    -fx-wrap-text: true; /* a long title moves to a second line in a narrow window instead of being cut */
 }
 
 .fact {

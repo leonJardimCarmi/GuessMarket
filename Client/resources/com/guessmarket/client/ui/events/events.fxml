@@ -10,7 +10,6 @@
 <?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
 <SplitPane dividerPositions="0.42" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
@@ -41,11 +40,10 @@
             <ToggleButton text="On close" userData="AT_RESOLUTION" selected="true"/>
         </FlowPane>
 
-        <HBox alignment="CENTER_LEFT" spacing="8">
+        <FlowPane alignment="CENTER_LEFT" hgap="12" vgap="4">
             <Label fx:id="countLabel"/>
-            <Region HBox.hgrow="ALWAYS"/>
             <Button text="Refresh" onAction="#onRefresh"/>
-        </HBox>
+        </FlowPane>
 
         <TableView fx:id="eventsTable" VBox.vgrow="ALWAYS">
             <columns>
@@ -65,7 +63,7 @@
     </VBox>
 
     <!-- ===== Right: the selected event's details (scrolls when the window is small) ===== -->
-    <ScrollPane fitToWidth="true">
+    <ScrollPane fitToWidth="true" minWidth="150">
         <VBox spacing="12">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>

@@ -7,24 +7,37 @@
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
 
 <BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.guessmarket.client.ui.main.MainController">
-    <!-- Header: app name, the logged-in user and balance, theme, log out -->
+    <!-- Header: app name, the logged-in user and balance, theme, log out.
+         minWidth="-Infinity" (USE_PREF_SIZE): never narrower than the text, so it is never cut to "..." -->
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="header">
+        <BorderPane styleClass="header">
             <padding>
                 <Insets top="8" right="12" bottom="8" left="12"/>
             </padding>
-            <Label text="Guess Market" styleClass="title"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label fx:id="userLabel"/>
-            <Label text="Theme:"/>
-            <ComboBox fx:id="themeComboBox"/>
-            <Button text="Log out" onAction="#onLogout"/>
-        </HBox>
+            <left>
+                <Label text="Guess Market" styleClass="title" minWidth="-Infinity" BorderPane.alignment="CENTER_LEFT"/>
+            </left>
+            <!-- On the right; when the window is narrow, its parts move to more rows instead of being cut -->
+            <center>
+                <FlowPane alignment="CENTER_RIGHT" hgap="12" vgap="6">
+                    <padding>
+                        <Insets left="12"/>
+                    </padding>
+                    <Label fx:id="userLabel" styleClass="fact-value"/>
+                    <Label fx:id="balanceLabel"/>
+                    <HBox alignment="CENTER_LEFT" spacing="6">
+                        <Label text="Theme:" minWidth="-Infinity"/>
+                        <ComboBox fx:id="themeComboBox"/>
+                    </HBox>
+                    <Button text="Log out" minWidth="-Infinity" onAction="#onLogout"/>
+                </FlowPane>
+            </center>
+        </BorderPane>
     </top>
 
     <!-- Each tab is its own FXML with its own controller; fx:id "events" injects eventsController -->

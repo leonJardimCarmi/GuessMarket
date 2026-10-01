@@ -27,7 +27,7 @@
         <HBox spacing="6" alignment="CENTER_LEFT">
             <TextField fx:id="filePathField" editable="false" promptText="Click to choose an XML file"
                        onMouseClicked="#onBrowse" HBox.hgrow="ALWAYS"/>
-            <Button text="Browse..." onAction="#onBrowse"/>
+            <Button text="Browse..." minWidth="-Infinity" onAction="#onBrowse"/> <!-- the path field shrinks instead -->
         </HBox>
         <HBox spacing="8" alignment="CENTER_LEFT">
             <Button fx:id="uploadButton" text="Upload" disable="true" onAction="#onUpload"/>
@@ -56,7 +56,7 @@
     </VBox>
 
     <!-- ===== Right: the user's own account (scrolls when the window is small) ===== -->
-    <ScrollPane fitToWidth="true">
+    <ScrollPane fitToWidth="true" minWidth="150">
         <VBox spacing="12">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>

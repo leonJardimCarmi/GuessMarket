@@ -16,8 +16,8 @@
       fx:controller="com.guessmarket.client.ui.account.EventTradeController">
 
     <HBox alignment="CENTER_LEFT" spacing="8">
-        <Label text="Event:"/>
-        <ComboBox fx:id="eventChoice" promptText="Choose an event" prefWidth="260"/>
+        <Label text="Event:" minWidth="-Infinity"/>
+        <ComboBox fx:id="eventChoice" promptText="Choose an event" prefWidth="260" minWidth="80"/>
     </HBox>
 
     <Label fx:id="chooseHint" text="Choose an event to see your position in it and to trade." wrapText="true"/>

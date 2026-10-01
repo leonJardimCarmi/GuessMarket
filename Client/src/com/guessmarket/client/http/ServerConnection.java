@@ -21,8 +21,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The only class that talks to the network. Every request goes through execute(), which:
@@ -39,9 +37,6 @@ public class ServerConnection {
     private final Gson gson = new Gson();
 
     public ServerConnection() {
-        // DEVELOPMENT ONLY (lecturer's tip): if a response is ever left unclosed, OkHttp also logs where it was
-        // created. Remove before submission.
-        Logger.getLogger(OkHttpClient.class.getName()).setLevel(Level.FINE);
         // One client for the whole application: it reuses its open connections between requests.
         client = new OkHttpClient.Builder().cookieJar(cookieJar).build();
     }

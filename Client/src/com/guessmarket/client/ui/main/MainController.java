@@ -24,6 +24,7 @@ public class MainController {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     @FXML private Label userLabel;
+    @FXML private Label balanceLabel;
     @FXML private ComboBox<Theme> themeComboBox;
     @FXML private TabPane tabPane;
     @FXML private Label statusLabel;
@@ -62,12 +63,14 @@ public class MainController {
     }
 
     // Shows the user's balance in the header, visible from both tabs.
+    // Two labels: in a narrow window the header puts them on separate rows instead of cutting a long one.
     public void showUser(UserDto user) {
         String balance = String.format("Balance: %.2f", user.getBalance());
         if (user.getReservedBalance() > 0) {
             balance += String.format(" (available: %.2f)", user.getAvailableBalance());
         }
-        userLabel.setText(user.getName() + "  |  " + balance);
+        userLabel.setText(user.getName());
+        balanceLabel.setText(balance);
     }
 
     public void showStatus(String message) {

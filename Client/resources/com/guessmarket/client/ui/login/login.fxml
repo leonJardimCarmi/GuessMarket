@@ -16,10 +16,12 @@
 
     <Label text="Guess Market" styleClass="title"/>
 
-    <HBox alignment="CENTER" spacing="8">
-        <Label fx:id="serverStatusLabel" text="Checking the server..."/>
+    <!-- The status can be a long message: it wraps to more lines instead of being cut -->
+    <VBox alignment="CENTER" spacing="2">
+        <Label fx:id="serverStatusLabel" text="Checking the server..." wrapText="true" textAlignment="CENTER"
+               maxWidth="420"/>
         <Hyperlink text="Check again" onAction="#onCheckServer"/>
-    </HBox>
+    </VBox>
 
     <HBox alignment="CENTER" spacing="8">
         <TextField fx:id="userNameField" promptText="Your name" prefColumnCount="18" onAction="#onLogin"/>
