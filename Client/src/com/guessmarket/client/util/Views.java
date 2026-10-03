@@ -1,9 +1,13 @@
 package com.guessmarket.client.util;
 
+import com.guessmarket.dto.AmountLimits;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
+
+import java.math.BigDecimal;
+import java.util.Locale;
 
 /**
  * Small helpers that several screens share: showing / hiding parts, info boxes, result messages and number input.
@@ -52,16 +56,24 @@ public abstract class Views {
         setShown(label, true);
     }
 
-    // Reads a positive number the user typed. Otherwise throws IllegalArgumentException with a message for the user.
-    public static double positiveNumber(TextField field, String fieldName) {
+    // Reads an amount the user typed (money or shares) by the same rules the server applies (see AmountLimits),
+    // so a mistake gets a clear message at once. Otherwise throws IllegalArgumentException with a message for the user.
+    // BigDecimal reads the text exactly: "0.1" stays 0.1, so counting its decimal places is reliable.
+    public static double positiveAmount(TextField field, String fieldName) {
+        BigDecimal value;
         try {
-            double value = Double.parseDouble(field.getText().trim());
-            if (value > 0 && Double.isFinite(value)) {
-                return value;
-            }
-        } catch (NumberFormatException ignored) {
-            // not a number - same message as a non-positive one
+            value = new BigDecimal(field.getText().trim());
+        } catch (NumberFormatException e) {
+            value = null;
         }
-        throw new IllegalArgumentException(fieldName + " must be a positive number.");
+        if (value == null || value.signum() <= 0 || value.stripTrailingZeros().scale() > AmountLimits.MAX_DECIMALS) {
+            throw new IllegalArgumentException(fieldName + " must be a positive number with at most "
+                    + AmountLimits.MAX_DECIMALS + " decimal places (for example 10 or 2.5).");
+        }
+        if (value.compareTo(BigDecimal.valueOf(AmountLimits.MAX)) > 0) {
+            throw new IllegalArgumentException(fieldName + " can be at most "
+                    + String.format(Locale.US, "%,.0f", AmountLimits.MAX) + ".");
+        }
+        return value.doubleValue();
     }
 }

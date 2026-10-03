@@ -40,6 +40,6 @@ public class Order {
     }
 
     public boolean isFilled() {
-        return this.sharesCount <= 0.00001;
+        return this.sharesCount <= Amounts.EPSILON;
     }
 }

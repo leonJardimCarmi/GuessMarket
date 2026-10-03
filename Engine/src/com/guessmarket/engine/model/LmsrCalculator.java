@@ -21,7 +21,7 @@ public class LmsrCalculator {
 
     public static double calculatePurchaseCost(List<Outcome> outcomes, String targetOutcomeTitle, double amountToBuy, double B){
         if( amountToBuy <= 0 ){
-            throw new IllegalArgumentException("Amount to buy be greater than zero. ");
+            throw new IllegalArgumentException("The amount to buy must be greater than zero.");
         }
 
         double[] sharesBefore = new double[outcomes.size()];

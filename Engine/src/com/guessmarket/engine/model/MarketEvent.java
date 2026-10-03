@@ -56,8 +56,9 @@ public class MarketEvent {
             throw new IllegalArgumentException("LMSR parameter B must be strictly positive.");
         }
         if (tradingMethod == TradingMethod.ORDER_BOOK) {
-            if (initialInvestment < 0) {
-                throw new IllegalArgumentException("Initial investment for Order Book cannot be negative.");
+            // The market maker opens the event by buying its first shares, so there must be something to buy.
+            if (initialInvestment <= 0) {
+                throw new IllegalArgumentException("Order Book parameter 'initial' must be strictly positive.");
             }
             if (d <= 0) {
                 throw new IllegalArgumentException("Order Book parameter 'd' must be strictly positive.");

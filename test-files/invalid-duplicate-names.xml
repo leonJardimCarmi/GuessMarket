@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- INVALID (valid by the schema, invalid by the rules): two events with the same name. Names are compared
+     ignoring upper/lower case and surrounding spaces, so "Rain in Eilat" and "rain in eilat " are the same name.
+     Expected: an error about the repeated name, and nothing from this file is added. -->
+<Guess-Market xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="GM-EX3-Schema.xsd">
+	<GM-events>
+		<GM-event name="Rain in Eilat">
+			<description>Will it rain in Eilat this month?</description>
+			<commission type="on-close">5</commission>
+			<GM-options>
+				<GM-option>Yes</GM-option>
+				<GM-option>No</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-LMSR>
+					<b>80</b>
+				</GM-LMSR>
+			</GM-method>
+		</GM-event>
+		<GM-event name="rain in eilat ">
+			<description>The same question again, under the same name.</description>
+			<commission type="on-purchase">5</commission>
+			<GM-options>
+				<GM-option>Yes</GM-option>
+				<GM-option>No</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-order-book allow-mint="true" initial="100" d="1"/>
+			</GM-method>
+		</GM-event>
+	</GM-events>
+</Guess-Market>

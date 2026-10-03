@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 
 public class Account {
-    private static final double EPSILON = 1e-9;
 
     private double balance;
     // Money promised to open buy orders: still part of the balance, but it cannot be spent elsewhere.
@@ -51,7 +50,7 @@ public class Account {
         if (amount <= 0) {
             throw new IllegalArgumentException("Withdrawal amount must be strictly positive.");
         }
-        if (amount > getAvailableBalance() + EPSILON) {
+        if (amount > getAvailableBalance() + Amounts.EPSILON) {
             throw new IllegalArgumentException("Insufficient funds. Available balance: " + getAvailableBalance());
         }
         AccountEntry entry = new AccountEntry(description, -amount, balance - amount);
@@ -63,7 +62,7 @@ public class Account {
         if (amount <= 0) {
             throw new IllegalArgumentException("Reserved amount must be strictly positive.");
         }
-        if (amount > getAvailableBalance() + EPSILON) {
+        if (amount > getAvailableBalance() + Amounts.EPSILON) {
             throw new IllegalArgumentException("Insufficient funds to reserve. Available balance: " + getAvailableBalance());
         }
         this.reserved += amount;
@@ -73,7 +72,7 @@ public class Account {
         if (amount <= 0) {
             throw new IllegalArgumentException("Released amount must be strictly positive.");
         }
-        if (amount > reserved + EPSILON) {
+        if (amount > reserved + Amounts.EPSILON) {
             throw new IllegalStateException("Cannot release more than the reserved amount (" + reserved + ").");
         }
         this.reserved = clampToZero(reserved - amount);
@@ -84,7 +83,7 @@ public class Account {
         if (amount <= 0) {
             throw new IllegalArgumentException("Withdrawal amount must be strictly positive.");
         }
-        if (amount > reserved + EPSILON) {
+        if (amount > reserved + Amounts.EPSILON) {
             throw new IllegalStateException("Cannot spend more than the reserved amount (" + reserved + ").");
         }
         AccountEntry entry = new AccountEntry(description, -amount, balance - amount);
@@ -95,6 +94,6 @@ public class Account {
 
     // Removes floating-point leftovers such as 1e-16, so a fully released reservation is exactly 0.
     private static double clampToZero(double value) {
-        return (value < EPSILON) ? 0.0 : value;
+        return (value < Amounts.EPSILON) ? 0.0 : value;
     }
 }

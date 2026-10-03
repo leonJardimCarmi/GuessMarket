@@ -21,7 +21,6 @@ public class EngineImpl implements EngineApi {
     private static final int REQUIRED_OPTIONS_COUNT = 2;
     private static final String COMMISSION_ON_CLOSE = "on-close";
     private static final String COMMISSION_ON_PURCHASE = "on-purchase";
-    private static final double EPSILON = 1e-9;
     private static final double PRICE_TICK = 0.01;
 
     // LinkedHashMap keeps insertion order: events are listed in upload order, users in registration order.
@@ -378,14 +377,25 @@ public class EngineImpl implements EngineApi {
 
     @Override
     public synchronized void depositFunds(String userName, double amount) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Deposit amount must be positive.");
-        }
+        requireAmount(amount, "The deposit amount");
         requireUser(userName).getAccount().deposit(amount, "Deposit");
+    }
+
+    // An amount a user entered (money or shares): more than 0, whole cents, and at most AmountLimits.MAX.
+    private static void requireAmount(double value, String what) {
+        if (!(value > 0) || value > AmountLimits.MAX) { // !(value > 0) also rejects NaN
+            throw new IllegalArgumentException(what + " must be more than 0 and at most "
+                    + String.format(Locale.US, "%,.0f", AmountLimits.MAX) + ".");
+        }
+        if (!Amounts.hasAllowedDecimals(value)) {
+            throw new IllegalArgumentException(what + " can have at most " + AmountLimits.MAX_DECIMALS
+                    + " decimal places (got " + value + ").");
+        }
     }
 
     @Override
     public synchronized void buySharesLMSR(String userName, String eventName, String outcomeTitle, double sharesToBuy) {
+        requireAmount(sharesToBuy, "The number of shares");
         User user = requireUser(userName);
         MarketEvent event = requireEvent(eventName);
         requireActive(event);
@@ -395,6 +405,11 @@ public class EngineImpl implements EngineApi {
         Outcome outcome = requireOutcome(event, outcomeTitle);
 
         double rawCost = LmsrCalculator.calculatePurchaseCost(event.getOutcomes(), outcome.getTitle(), sharesToBuy, event.getB());
+        if (!(rawCost > 0)) {
+            // The outcome's price is so close to 0 that a purchase this small costs less than a double can tell apart.
+            throw new IllegalStateException("The price of '" + outcome.getTitle() + "' is practically 0, so buying "
+                    + formatAmount(sharesToBuy) + " of its shares has no measurable cost. Try a larger number of shares.");
+        }
         double feePaid = 0.0;
         if (event.getFeeType() == MarketEvent.FeeType.AT_PURCHASE) {
             feePaid = LmsrCalculator.calculateFee(rawCost, event.getFeePercentage(), event.getB());
@@ -478,7 +493,7 @@ public class EngineImpl implements EngineApi {
 
         double totalPayout = countHeldShares(event, winningOutcome) * event.getPayoutPerShare();
         double eventBalance = event.getEventAccount().getBalance();
-        if (totalPayout > eventBalance + EPSILON) {
+        if (totalPayout > eventBalance + Amounts.EPSILON) {
             throw new IllegalStateException("Event '" + event.getName() + "' cannot cover the payouts: needs "
                     + formatAmount(totalPayout) + " but holds " + formatAmount(eventBalance) + ".");
         }
@@ -532,9 +547,8 @@ public class EngineImpl implements EngineApi {
     @Override
     public synchronized void addOrder(String userName, String eventName, String outcomeTitle,
                          String sideStr, double price, double shares) {
-        if (price <= 0 || shares <= 0) {
-            throw new IllegalArgumentException("Price and shares must be positive.");
-        }
+        requireAmount(price, "The price");
+        requireAmount(shares, "The number of shares");
 
         User user = requireUser(userName);
         MarketEvent event = requireEvent(eventName);
@@ -545,12 +559,13 @@ public class EngineImpl implements EngineApi {
         Outcome outcome = requireOutcome(event, outcomeTitle);
 
         double maxPrice = event.getD() - PRICE_TICK;
-        if (price > maxPrice + EPSILON) {
+        if (price > maxPrice + Amounts.EPSILON) {
             throw new IllegalArgumentException("Price " + formatAmount(price) + " is too high: the maximum price in '"
                     + event.getName() + "' is " + formatAmount(maxPrice) + " (d - " + formatAmount(PRICE_TICK) + ").");
         }
 
         OrderSide side = parseOrderSide(sideStr);
+        rejectSelfTrade(event.getOrderBook(outcome.getTitle()), side, price, user);
         if (side == OrderSide.BUY) {
             reserveFundsForBuyOrder(event, user, price, shares);
         } else {
@@ -579,6 +594,26 @@ public class EngineImpl implements EngineApi {
         throw new IllegalArgumentException("Order side must be BUY or SELL, got '" + sideStr + "'.");
     }
 
+    // Self-trade prevention, as on real exchanges: an order may not reach a waiting order of the same user.
+    // Checked before anything changes, so a rejected order leaves no trace. (Minting with one's own buy order on the
+    // other outcome is allowed: it creates a new pair of shares, nobody trades with anybody.)
+    private static void rejectSelfTrade(OrderBook ownBook, OrderSide side, double price, User user) {
+        if (ownBook == null) {
+            return;
+        }
+        boolean buying = (side == OrderSide.BUY);
+        for (Order waiting : buying ? ownBook.getAsks() : ownBook.getBids()) {
+            boolean reachable = buying
+                    ? waiting.getPrice() <= price + Amounts.EPSILON
+                    : waiting.getPrice() >= price - Amounts.EPSILON;
+            if (reachable && waiting.getUserName().equals(user.getName())) {
+                throw new IllegalStateException("This order would trade with your own waiting "
+                        + (buying ? "sell" : "buy") + " order at " + formatAmount(waiting.getPrice())
+                        + ". Choose a price that does not reach your own order.");
+            }
+        }
+    }
+
     // The most a buy order can ever cost: every share at its limit price, plus the purchase fee (if any).
     private double calculateBuyReservation(MarketEvent event, double price, double shares) {
         double amount = price * shares;
@@ -600,7 +635,7 @@ public class EngineImpl implements EngineApi {
         OrderBook orderBook = event.getOrderBook(outcome.getTitle());
         double alreadyOffered = (orderBook == null) ? 0.0 : orderBook.getOpenSellShares(seller.getName());
         double available = held - alreadyOffered;
-        if (shares > available + EPSILON) {
+        if (shares > available + Amounts.EPSILON) {
             throw new IllegalStateException("You hold " + formatAmount(held) + " '" + outcome.getTitle() + "' shares and "
                     + formatAmount(alreadyOffered) + " of them are already offered in open sell orders, so at most "
                     + formatAmount(Math.max(available, 0.0)) + " can be sold.");
@@ -609,6 +644,7 @@ public class EngineImpl implements EngineApi {
 
     private void executeFill(MarketEvent event, Fill fill) {
         User buyer = requireUser(fill.buyerName());
+        User seller = fill.isMinted() ? null : requireUser(fill.sellerName());
         Outcome outcome = requireOutcome(event, fill.outcomeTitle());
 
         double amount = fill.price() * fill.shares();
@@ -616,24 +652,27 @@ public class EngineImpl implements EngineApi {
         String traded = formatAmount(fill.shares()) + " '" + outcome.getTitle() + "' shares in '"
                 + event.getName() + "' at " + formatAmount(fill.price());
 
+        // The shares leave the seller first: if anything were wrong with them, no money would have moved yet.
+        if (seller != null) {
+            seller.deductShares(event.getName(), outcome.getTitle(), fill.shares());
+        }
+
         // The buyer's money was reserved at the order's limit price; any saving from a cheaper price is released.
         double reservedForFill = calculateBuyReservation(event, fill.buyerLimitPrice(), fill.shares());
         buyer.getAccount().withdrawReserved(amount + fee,
                 "Bought " + traded + (fill.isMinted() ? " (newly minted)" : "") + feeSuffix(fee));
         double unusedReservation = reservedForFill - (amount + fee);
-        if (unusedReservation > EPSILON) {
+        if (unusedReservation > Amounts.EPSILON) {
             buyer.getAccount().release(unusedReservation);
         }
         buyer.addShares(event.getName(), outcome.getTitle(), fill.shares());
         positionOf(buyer, event).addShareInvestment(outcome.getTitle(), amount);
 
-        if (fill.isMinted()) {
+        if (seller == null) {
             // New shares were created: the payment backs them in the event account, to be paid out when it closes.
             event.getEventAccount().deposit(amount, "'" + buyer.getName() + "' paid for minted " + traded);
         } else {
-            User seller = requireUser(fill.sellerName());
             seller.getAccount().deposit(amount, "Sold " + traded);
-            seller.deductShares(event.getName(), outcome.getTitle(), fill.shares());
             positionOf(seller, event).addReceived(amount);
         }
 

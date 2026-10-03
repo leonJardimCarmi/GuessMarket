@@ -97,7 +97,10 @@ public class EventTradeController {
         Tables.text(tradeActionColumn, trade -> boughtByMe(trade) ? "Bought" : "Sold");
         Tables.text(tradeOutcomeColumn, TransactionDto::getOutcomeTitle);
         Tables.number(tradeSharesColumn, TransactionDto::getSharesBought);
-        Tables.number(tradeAmountColumn, TransactionDto::getAmountPaid);
+        // amountPaid is what the buyer paid, fee included; the fee goes to the market maker, not to the seller.
+        Tables.number(tradeAmountColumn, trade -> boughtByMe(trade)
+                ? trade.getAmountPaid()
+                : trade.getAmountPaid() - trade.getFeePaid());
         Tables.number(tradeFeeColumn, trade -> boughtByMe(trade) ? trade.getFeePaid() : null); // the buyer pays the fee
 
         // The choice box holds the server's values (BUY / SELL) and shows them as "Buy" / "Sell".
@@ -282,7 +285,7 @@ public class EventTradeController {
         String outcome = buyOutcomeChoice.getValue();
         double shares;
         try {
-            shares = Views.positiveNumber(buySharesField, "Shares");
+            shares = Views.positiveAmount(buySharesField, "Shares");
         } catch (IllegalArgumentException e) {
             Views.showError(actionMessage, e.getMessage());
             return;
@@ -299,8 +302,8 @@ public class EventTradeController {
         double shares;
         double price;
         try {
-            shares = Views.positiveNumber(orderSharesField, "Shares");
-            price = Views.positiveNumber(priceField, "Price");
+            shares = Views.positiveAmount(orderSharesField, "Shares");
+            price = Views.positiveAmount(priceField, "Price");
         } catch (IllegalArgumentException e) {
             Views.showError(actionMessage, e.getMessage());
             return;

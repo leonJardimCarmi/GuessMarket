@@ -260,23 +260,29 @@ public class AccountController {
     private void onDeposit() {
         double amount;
         try {
-            amount = Views.positiveNumber(depositField, "The amount");
+            amount = Views.positiveAmount(depositField, "The amount");
         } catch (IllegalArgumentException e) {
             Views.showError(depositMessage, e.getMessage());
             return;
         }
-        depositButton.setDisable(true);
+        setDepositing(true);
         Async.run(() -> context.api().deposit(amount),
                 user -> {
-                    depositButton.setDisable(false);
+                    setDepositing(false);
                     depositField.clear();
                     Views.showSuccess(depositMessage, "Deposited " + Format.money(amount) + ".");
                     refresh();
                 },
                 error -> {
-                    depositButton.setDisable(false);
+                    setDepositing(false);
                     context.handleError(error, message -> Views.showError(depositMessage, message));
                 });
+    }
+
+    // The field is locked too, not only the button: Enter in the field would send the same deposit again.
+    private void setDepositing(boolean depositing) {
+        depositButton.setDisable(depositing);
+        depositField.setDisable(depositing);
     }
 
     // What one refresh brings back together. ledgerFrom: the index the new account entries start from.

@@ -64,17 +64,20 @@ public class User {
             throw new IllegalArgumentException("Shares amount to deduct must be positive.");
         }
 
+        // The same tolerance as everywhere in the engine: holding 0.09999999999999998 shares means holding 0.1.
         double currentShares = getSharesCount(eventName, outcomeTitle);
-        if (currentShares < shares) {
+        if (shares > currentShares + Amounts.EPSILON) {
             throw new IllegalStateException("Insufficient shares to deduct. Available: " + currentShares + ", Requested: " + shares);
         }
 
         Map<String, Double> eventHoldings = userHoldings.get(eventName);
+        if (eventHoldings == null) {
+            return; // nothing was held - the request was only a leftover of the arithmetic
+        }
         double remainingShares = currentShares - shares;
-
-        if (remainingShares > 0) {
+        if (remainingShares > Amounts.EPSILON) {
             eventHoldings.put(outcomeTitle, remainingShares);
-        } else {
+        } else { // nothing left, apart from a floating-point leftover
             eventHoldings.remove(outcomeTitle);
             if (eventHoldings.isEmpty()) {
                 userHoldings.remove(eventName);

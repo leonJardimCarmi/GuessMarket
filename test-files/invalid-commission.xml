@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- INVALID (valid by the schema, invalid by the rules): the second event's commission is 95, above the maximum of 90.
+     Expected: an error naming the event and the reason, and NOTHING from this file is added -
+     not even the first event, which is valid by itself. -->
+<Guess-Market xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="GM-EX3-Schema.xsd">
+	<GM-events>
+		<GM-event name="Heat wave in August">
+			<description>Will the temperature in Tel Aviv pass 40 degrees in August?</description>
+			<commission type="on-purchase">10</commission>
+			<GM-options>
+				<GM-option>Yes</GM-option>
+				<GM-option>No</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-LMSR>
+					<b>100</b>
+				</GM-LMSR>
+			</GM-method>
+		</GM-event>
+		<GM-event name="Tax raise">
+			<description>Will the VAT be raised next year?</description>
+			<commission type="on-close">95</commission>
+			<GM-options>
+				<GM-option>Raised</GM-option>
+				<GM-option>Not raised</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-order-book allow-mint="false" initial="200" d="1"/>
+			</GM-method>
+		</GM-event>
+	</GM-events>
+</Guess-Market>

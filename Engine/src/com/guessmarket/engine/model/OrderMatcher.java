@@ -8,7 +8,6 @@ import java.util.List;
  * It only moves shares between orders and produces {@link Fill}s; the money is settled by the engine.
  */
 public final class OrderMatcher {
-    private static final double EPSILON = 1e-9;
 
     private OrderMatcher() {
     }
@@ -36,13 +35,13 @@ public final class OrderMatcher {
         while (!buy.isFilled()) {
             Order ask = ownBook.getBestAsk();
             Order mintPartner = (mintBook == null) ? null : mintBook.getBestBid();
-            boolean canTrade = (ask != null) && (ask.getPrice() <= buy.getPrice() + EPSILON);
-            boolean canMint = (mintPartner != null) && (buy.getPrice() + mintPartner.getPrice() >= d - EPSILON);
+            boolean canTrade = (ask != null) && (ask.getPrice() <= buy.getPrice() + Amounts.EPSILON);
+            boolean canMint = (mintPartner != null) && (buy.getPrice() + mintPartner.getPrice() >= d - Amounts.EPSILON);
             if (!canTrade && !canMint) {
                 return;
             }
             // Best execution: take whichever is cheaper for the incoming buyer; on a tie, prefer the existing shares.
-            if (canTrade && (!canMint || ask.getPrice() <= d - mintPartner.getPrice() + EPSILON)) {
+            if (canTrade && (!canMint || ask.getPrice() <= d - mintPartner.getPrice() + Amounts.EPSILON)) {
                 tradeWithAsk(buy, ask, ownBook, fills);
             } else {
                 mint(buy, mintPartner, ownBook, mintBook, d, fills);
@@ -53,7 +52,7 @@ public final class OrderMatcher {
     private static void matchSellOrder(Order sell, OrderBook ownBook, List<Fill> fills) {
         while (!sell.isFilled()) {
             Order bid = ownBook.getBestBid();
-            if (bid == null || bid.getPrice() < sell.getPrice() - EPSILON) {
+            if (bid == null || bid.getPrice() < sell.getPrice() - Amounts.EPSILON) {
                 return;
             }
             // A trade executes at the price of the order that was already waiting in the book.

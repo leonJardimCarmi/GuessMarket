@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A valid file with boundary values: commission 0 and 90, d other than 1, and an event name with
+     characters that are special in URLs (& : ?). Expected: 3 events added, the uploader is their market maker. -->
+<Guess-Market xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="GM-EX3-Schema.xsd">
+	<GM-events>
+		<GM-event name="Derby: Maccabi &amp; Hapoel ?">
+			<description>Who will win the Tel Aviv derby on Saturday? A draw counts as Hapoel.</description>
+			<commission type="on-purchase">0</commission>
+			<GM-options>
+				<GM-option>Maccabi Tel-Aviv</GM-option>
+				<GM-option>Hapoel Tel-Aviv</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-order-book allow-mint="true" initial="500" d="10"/>
+			</GM-method>
+		</GM-event>
+		<GM-event name="Bitcoin above 100K">
+			<description>Will Bitcoin close above 100,000$ on 31.12.2026?</description>
+			<commission type="on-purchase">90</commission>
+			<GM-options>
+				<GM-option>Above</GM-option>
+				<GM-option>Below</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-LMSR>
+					<b>50</b>
+				</GM-LMSR>
+			</GM-method>
+		</GM-event>
+		<GM-event name="Snow in Jerusalem">
+			<description>Will it snow in Jerusalem this winter?</description>
+			<commission type="on-close">25</commission>
+			<GM-options>
+				<GM-option>Yes</GM-option>
+				<GM-option>No</GM-option>
+			</GM-options>
+			<GM-method>
+				<GM-order-book allow-mint="false" initial="100" d="2"/>
+			</GM-method>
+		</GM-event>
+	</GM-events>
+</Guess-Market>
