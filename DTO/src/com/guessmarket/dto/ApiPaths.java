@@ -25,6 +25,9 @@ public abstract class ApiPaths {
     public static final String BUY = "/event/buy";
     public static final String ORDER = "/event/order";
 
+    // Bonus: GET = the messages from index 'from' on, POST = send a message ('text')
+    public static final String CHAT = "/chat";
+
     private ApiPaths() {
     }
 }

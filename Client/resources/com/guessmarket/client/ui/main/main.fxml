@@ -10,7 +10,9 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+<!-- minWidth / minHeight: the smallest size the screen is laid out at. In a smaller window it keeps this size
+     and the window shows scroll bars (ClientContext puts every screen in a scroll pane). -->
+<BorderPane minWidth="800" minHeight="550" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.guessmarket.client.ui.main.MainController">
     <!-- Header: app name, the logged-in user and balance, theme, log out.
          minWidth="-Infinity" (USE_PREF_SIZE): never narrower than the text, so it is never cut to "..." -->
@@ -51,6 +53,12 @@
             <Tab text="Account">
                 <content>
                     <fx:include fx:id="account" source="/com/guessmarket/client/ui/account/account.fxml"/>
+                </content>
+            </Tab>
+            <!-- Bonus. The title is bound in MainController: "Chat (2)" while messages wait unread -->
+            <Tab fx:id="chatTab">
+                <content>
+                    <fx:include fx:id="chat" source="/com/guessmarket/client/ui/chat/chat.fxml"/>
                 </content>
             </Tab>
         </TabPane>

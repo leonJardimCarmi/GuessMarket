@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.guessmarket.dto.AccountEntryDto;
 import com.guessmarket.dto.ApiParams;
 import com.guessmarket.dto.ApiPaths;
+import com.guessmarket.dto.ChatMessageDto;
 import com.guessmarket.dto.MarketEventDto;
 import com.guessmarket.dto.OrderBookDto;
 import com.guessmarket.dto.ParticipantDto;
@@ -28,6 +29,7 @@ public class ServerApi {
     private static final Type USER_LIST = new TypeToken<List<UserSummaryDto>>() { }.getType();
     private static final Type ENTRY_LIST = new TypeToken<List<AccountEntryDto>>() { }.getType();
     private static final Type PARTICIPANT_LIST = new TypeToken<List<ParticipantDto>>() { }.getType();
+    private static final Type CHAT_LIST = new TypeToken<List<ChatMessageDto>>() { }.getType();
     private static final String UPLOAD_MESSAGE = "message"; // the upload answer is {"message": ..., "events": [...]}
 
     private final ServerConnection connection = new ServerConnection();
@@ -117,5 +119,15 @@ public class ServerApi {
         return connection.post(ApiPaths.ORDER, Map.of(ApiParams.EVENT, eventName, ApiParams.OUTCOME, outcome,
                 ApiParams.SIDE, side, ApiParams.PRICE, String.valueOf(price), ApiParams.SHARES, String.valueOf(shares)),
                 UserEventDetailsDto.class);
+    }
+
+    // --- Chat (bonus) ---
+
+    public List<ChatMessageDto> getChatMessages(int fromIndex) {
+        return connection.get(ApiPaths.CHAT, Map.of(ApiParams.FROM, String.valueOf(fromIndex)), CHAT_LIST);
+    }
+
+    public ChatMessageDto sendChatMessage(String text) {
+        return connection.post(ApiPaths.CHAT, Map.of(ApiParams.TEXT, text), ChatMessageDto.class);
     }
 }

@@ -11,6 +11,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ScrollPane;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -27,6 +28,7 @@ public class ClientContext {
     private static final String LOGIN_SCREEN = "/com/guessmarket/client/ui/login/login.fxml";
     private static final String MAIN_SCREEN = "/com/guessmarket/client/ui/main/main.fxml";
     private static final String BASE_STYLESHEET = "/com/guessmarket/client/css/client.css";
+    private static final String SCREEN_SCROLL_STYLE = "screen-scroll";
     private static final String SESSION_ENDED = "Your session has ended. Please log in again.";
 
     private final Stage stage;
@@ -138,12 +140,23 @@ public class ClientContext {
     private <C> C showScreen(String fxmlPath) {
         FXMLLoader loader = new FXMLLoader(resource(fxmlPath));
         try {
-            Parent root = loader.load();
-            stage.getScene().setRoot(root);
+            Parent screen = loader.load();
+            stage.getScene().setRoot(scrollable(screen));
         } catch (IOException e) {
             throw new UncheckedIOException("Could not load the screen " + fxmlPath, e);
         }
         return loader.getController();
+    }
+
+    // Every screen sits in a scroll pane that normally just fills the window. When the window is smaller than the
+    // screen's minimum size (set in its FXML), the screen stops shrinking and scroll bars appear instead.
+    private static ScrollPane scrollable(Parent screen) {
+        ScrollPane scrollPane = new ScrollPane(screen);
+        scrollPane.setFitToWidth(true);   // as wide as the window, but never narrower than the screen's minimum
+        scrollPane.setFitToHeight(true);
+        scrollPane.setFocusTraversable(false); // the keyboard focus belongs to the screen's own controls
+        scrollPane.getStyleClass().add(SCREEN_SCROLL_STYLE);
+        return scrollPane;
     }
 
     private static URL resource(String path) {

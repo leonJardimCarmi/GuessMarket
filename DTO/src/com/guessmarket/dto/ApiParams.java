@@ -14,6 +14,7 @@ public abstract class ApiParams {
     public static final String AMOUNT = "amount";
     public static final String FROM = "from";
     public static final String FILE = "file";
+    public static final String TEXT = "text";
 
     private ApiParams() {
     }

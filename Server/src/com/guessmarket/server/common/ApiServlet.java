@@ -99,6 +99,10 @@ public abstract class ApiServlet extends HttpServlet {
         return ServerContext.onlineUsers(getServletContext());
     }
 
+    protected ChatRoom chatRoom() {
+        return ServerContext.chatRoom(getServletContext());
+    }
+
     // A simple success answer for actions that have no data to return: {"message": "..."}
     protected static Map<String, String> message(String text) {
         return Map.of("message", text);

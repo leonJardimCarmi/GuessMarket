@@ -10,7 +10,7 @@ import jakarta.servlet.http.HttpSessionListener;
 
 /**
  * Tomcat calls this listener at two moments:
- * when the application starts - the single shared engine and the online-users list are created;
+ * when the application starts - the single shared engine, the online-users list and the chat room are created;
  * when a session ends (logout, or no request for the session-timeout period) - the user's name is freed.
  */
 @WebListener
@@ -21,6 +21,7 @@ public class AppListener implements ServletContextListener, HttpSessionListener 
         ServletContext context = event.getServletContext();
         context.setAttribute(ServerContext.ENGINE_ATTRIBUTE, new EngineImpl());
         context.setAttribute(ServerContext.ONLINE_USERS_ATTRIBUTE, new OnlineUsers());
+        context.setAttribute(ServerContext.CHAT_ROOM_ATTRIBUTE, new ChatRoom());
         context.log("Guess Market engine is ready.");
     }
 

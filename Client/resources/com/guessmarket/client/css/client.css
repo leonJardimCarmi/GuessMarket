@@ -4,6 +4,18 @@
 
 /* ===== Frame ===== */
 
+/* The scroll pane around every screen (see ClientContext): invisible - no border, the theme's background -
+   only its scroll bars show, when the window is smaller than the screen's minimum size. */
+.screen-scroll {
+    -fx-background-color: -gm-background;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.screen-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
 .header {
     -fx-border-color: transparent transparent derive(-fx-base, -25%) transparent;
 }
@@ -72,6 +84,12 @@
     -fx-padding: 8px;
     -fx-border-color: derive(-fx-base, -25%);
     -fx-border-radius: 4px;
+}
+
+/* ===== Chat tab (bonus) ===== */
+
+.chat-mine {
+    -fx-font-weight: bold;
 }
 
 /* ===== Tables ===== */

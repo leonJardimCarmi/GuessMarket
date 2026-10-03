@@ -3,6 +3,7 @@
     -fx-background-color: #f0f8ff;
     -fx-font-family: "Comic Sans MS", "Arial", sans-serif;
     /* Colors used by client.css; every theme defines them */
+    -gm-background: #f0f8ff;
     -gm-positive: #2e7d32;
     -gm-negative: #c62828;
 }

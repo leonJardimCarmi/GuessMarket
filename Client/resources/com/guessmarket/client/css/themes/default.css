@@ -2,6 +2,7 @@
     -fx-base: #f4f4f4;
     -fx-font-family: "Segoe UI", Arial, sans-serif;
     /* Colors used by client.css; every theme defines them */
+    -gm-background: -fx-background; /* JavaFX's own window background */
     -gm-positive: #2e7d32;
     -gm-negative: #c62828;
 }

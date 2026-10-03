@@ -3,7 +3,8 @@
     -fx-background-color: #121212;
     -fx-text-fill: #ffffff;
     -fx-font-family: "Consolas", monospace;
-    /* Colors used by client.css; brighter here, to stay readable on the dark background */
+    /* Colors used by client.css; green and red are brighter here, to stay readable on the dark background */
+    -gm-background: #121212;
     -gm-positive: #66bb6a;
     -gm-negative: #ef5350;
 }
