@@ -1,0 +1,622 @@
+/* ===== Colors and sizes used by the whole web client: change them here only ===== */
+:root {
+    --background: #f4f6f8;
+    --surface: #ffffff;
+    --text: #1f2933;
+    --muted: #616e7c;
+    --border: #d9e2ec;
+    --border-strong: #bcccdc;
+    --hover: #eef2f6;
+    --header-background: #f8fafc;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft: #dbeafe;
+    --positive: #15803d;
+    --negative: #b91c1c;
+    --radius: 6px;
+}
+
+/* ===== Basics ===== */
+
+/* Width and height include padding and border: sizes are easier to predict. */
+* {
+    box-sizing: border-box;
+}
+
+/* The "hidden" attribute always wins - even over a class below that sets "display" (e.g. .login-screen). */
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--background);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+}
+
+/* Buttons, fields and lists use the page's font, not the browser's default one. */
+button,
+input,
+select {
+    font: inherit;
+}
+
+.title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.startup-message {
+    margin: 40px 16px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* ===== Buttons and fields ===== */
+
+.button {
+    padding: 6px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap; /* "Log out" never breaks into two lines */
+}
+
+.button:hover:not(:disabled) {
+    background: var(--hover);
+}
+
+.button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* The main action of a screen, e.g. "Log in" */
+.button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.button.primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+/* A button that looks like a link (like the JavaFX Hyperlink "Check again") */
+.link-button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+}
+
+.link-button:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.link-button:disabled {
+    color: var(--muted);
+    cursor: default;
+}
+
+.text-field {
+    min-width: 0; /* may shrink in a narrow window instead of pushing the button out of it */
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+}
+
+.text-field:focus {
+    border-color: var(--accent);
+    outline: 1px solid var(--accent);
+}
+
+/* ===== Login screen ===== */
+
+/* Fills the window and puts the card in its middle */
+.login-screen {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.card {
+    width: 100%;
+    max-width: 460px;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.card .title {
+    margin-bottom: 16px;
+    font-size: 28px;
+}
+
+.status {
+    margin: 0 0 4px;
+    color: var(--muted);
+}
+
+.login-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.login-form .text-field {
+    flex: 1; /* the field takes the row's free width, the button keeps its own */
+}
+
+.login-form + .error-text {
+    margin: 12px 0 0;
+}
+
+/* ===== Main screen: header, tabs, content, status bar ===== */
+
+/* A column as high as the window: only the content in the middle scrolls */
+.main-screen {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.header-user {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px 14px;
+}
+
+.user-name {
+    font-weight: bold;
+    overflow-wrap: anywhere; /* a very long name breaks into lines instead of leaving the window */
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.tab {
+    margin-bottom: -1px; /* covers the line under the tabs, so the chosen tab joins its content */
+    padding: 8px 18px;
+    border: 1px solid transparent;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.tab:hover {
+    color: var(--text);
+}
+
+.tab[aria-selected="true"] {
+    border-color: var(--border);
+    border-bottom-color: var(--background);
+    background: var(--background);
+    color: var(--text);
+    font-weight: 600;
+}
+
+.tab-content {
+    flex: 1;
+    min-height: 0; /* lets the content area be smaller than its content - then it scrolls */
+    overflow: auto;
+    padding: 16px;
+}
+
+.placeholder {
+    color: var(--muted);
+}
+
+.status-bar {
+    padding: 4px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+}
+
+/* ===== Tabs' common parts ===== */
+
+/* A white box on the gray background, scrolling by itself when its content is higher */
+.pane {
+    min-height: 0;
+    overflow: auto;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.section-title {
+    margin: 20px 0 8px;
+    font-size: 16px;
+}
+
+/* The first title in a pane needs no space above it */
+.section-title.first {
+    margin-top: 0;
+}
+
+/* Two panes side by side, each scrolling by itself (like the JavaFX SplitPane); the tab's own class sets the widths */
+.split-layout {
+    display: grid;
+    gap: 16px;
+    height: 100%;
+}
+
+/* A row of a form - label, field, button - that moves to more rows when narrow */
+.inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+}
+
+.spaced {
+    margin-top: 12px;
+}
+
+.amount-field {
+    width: 110px;
+}
+
+.select {
+    max-width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+}
+
+.form-message {
+    margin: 8px 0 0;
+}
+
+/* Small boxes of facts: the caption above, the value below */
+.facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.fact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 12px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.fact-caption {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.fact-value {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+/* ===== Events tab ===== */
+
+.events-layout {
+    grid-template-columns: minmax(340px, 45fr) minmax(0, 55fr);
+}
+
+.list-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* The events list takes the pane's free height and scrolls inside it */
+.list-pane .table-wrap {
+    flex: 1;
+    min-height: 150px;
+}
+
+.filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-label {
+    min-width: 60px;
+    color: var(--muted);
+}
+
+.toggle {
+    padding: 4px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.toggle:hover {
+    background: var(--hover);
+}
+
+.toggle[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.list-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.list-toolbar .section-title {
+    margin: 0;
+}
+
+.details-pane .placeholder {
+    margin: 0;
+}
+
+.event-title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    overflow-wrap: anywhere;
+}
+
+.description {
+    margin: 0 0 12px;
+    color: var(--muted);
+}
+
+/* The two order books side by side - or one under the other when there is no room */
+.order-books {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+}
+
+/* ===== Account tab ===== */
+
+.account-layout {
+    grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
+}
+
+/* The actions box. A fieldset, so disabling it disables every control inside (while an action runs). */
+.actions-box {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0; /* by default a fieldset is never narrower than its content; this lets it shrink with the pane */
+    margin: 12px 0 0;
+    padding: 12px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.actions-box:disabled {
+    opacity: 0.6;
+}
+
+.actions-box .placeholder,
+.actions-box .form-message {
+    margin: 0;
+}
+
+/* A narrow window: the panes one under the other, and the whole tab scrolls instead of each pane */
+@media (max-width: 900px) {
+    .split-layout {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+    }
+
+    .pane {
+        overflow: visible;
+    }
+
+    .list-pane .table-wrap {
+        flex: none;
+        max-height: 50vh;
+    }
+}
+
+/* ===== Tables (js/util/table.js) ===== */
+
+/* A wide table scrolls sideways inside its frame instead of widening the page */
+.table-wrap {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+/* A table that can get long (e.g. the trade history) scrolls inside this height */
+.table-wrap.limited {
+    max-height: 260px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+/* The header stays in place while the rows scroll under it */
+.data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.data-table th {
+    padding: 0;
+    background: var(--header-background);
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* An outcome's name above its columns may be long: it wraps like the cells */
+.data-table th.group-header {
+    padding: 6px 10px;
+    border-left: 1px solid var(--border);
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.data-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* The first column holds the table's main name (event, outcome, participant, user). A long name without spaces
+   (e.g. "A+B%C#D...") may break anywhere, so it cannot widen its column and push the other columns out of view. */
+.data-table td:first-child {
+    min-width: 6em; /* but the main name keeps a readable width */
+    overflow-wrap: anywhere;
+}
+
+/* The same for another column with names in its text (the account history's descriptions) */
+.data-table td.long-text {
+    min-width: 10em;
+    overflow-wrap: anywhere;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Numbers: right-aligned, never broken into two lines, and all digits equally wide, so a column of numbers lines up */
+.data-table .number {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.sort-button {
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    color: inherit;
+    font-weight: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+.sort-button:hover {
+    background: var(--hover);
+}
+
+/* The sort direction after the title: \25B2 = up triangle, \25BC = down triangle */
+th[aria-sort="ascending"] .sort-button::after {
+    content: " \25B2";
+}
+
+th[aria-sort="descending"] .sort-button::after {
+    content: " \25BC";
+}
+
+.empty-cell {
+    padding: 16px 10px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* Rows that can be chosen (the events list) */
+.selectable tbody tr[data-index] {
+    cursor: pointer;
+}
+
+.selectable tbody tr[data-index]:hover {
+    background: var(--hover);
+}
+
+.selectable tbody tr[aria-selected="true"] {
+    background: var(--accent-soft);
+}
+
+.selectable tbody tr:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.side-buy {
+    color: var(--positive);
+    font-weight: 600;
+}
+
+.side-sell {
+    color: var(--negative);
+    font-weight: 600;
+}
+
+/* ===== Messages =====
+   Last in the file on purpose: when two rules are equally specific, the later one wins - so green / red win over
+   the gray text of e.g. .status or .status-bar. */
+
+.status-ok {
+    color: var(--positive);
+}
+
+.status-error,
+.error-text {
+    color: var(--negative);
+}

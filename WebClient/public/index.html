@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Guess Market</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- type="module": the script may import other script files, and it runs after the whole page has been read -->
+    <script type="module" src="js/app.js"></script>
+</head>
+<body>
+    <!-- The whole web client is this one page (a "single-page application"): both screens are here and the
+         JavaScript shows one of them at a time. "hidden" = not shown until the JavaScript shows it. -->
+
+    <!-- Shown until the JavaScript starts (app.js hides it). It stays only when the page was not opened through the
+         web client's own server - for example when index.html was opened as a file - and then says what to do. -->
+    <p id="startup-message" class="startup-message">
+        Starting the web client... If this message stays, run run-web-client.bat and open http://localhost:3000
+    </p>
+
+    <!-- ===== Login screen (js/screens/login.js) ===== -->
+    <section id="login-screen" class="login-screen" hidden>
+        <div class="card">
+            <h1 class="title">Guess Market</h1>
+
+            <p id="server-status" class="status">Checking the server...</p>
+            <button id="check-again" type="button" class="link-button">Check again</button>
+
+            <!-- A form: Enter in the name field submits it, like clicking "Log in" -->
+            <form id="login-form" class="login-form">
+                <input id="user-name" class="text-field" type="text" placeholder="Your name" spellcheck="false">
+                <button id="login-button" class="button primary" type="submit">Log in</button>
+            </form>
+
+            <p id="login-error" class="error-text" hidden></p>
+        </div>
+    </section>
+
+    <!-- ===== Main screen (js/screens/main.js) ===== -->
+    <section id="main-screen" class="main-screen" hidden>
+        <!-- Header: on a narrow screen its parts move to more rows instead of being cut -->
+        <header class="header">
+            <span class="title">Guess Market</span>
+            <div class="header-user">
+                <span id="header-user-name" class="user-name"></span>
+                <span id="header-balance"></span>
+                <button id="logout-button" class="button" type="button">Log out</button>
+            </div>
+        </header>
+
+        <!-- Tabs: each tab names the panel it shows in aria-controls -->
+        <nav class="tabs" role="tablist">
+            <button id="events-tab" class="tab" type="button" role="tab" aria-controls="events-panel">Events</button>
+            <button id="account-tab" class="tab" type="button" role="tab" aria-controls="account-panel">Account</button>
+        </nav>
+
+        <!-- The tabs' content scrolls; the header and the status bar always stay in place -->
+        <main class="tab-content">
+            <!-- ===== Events tab (js/screens/events.js): the list on the left, the selected event on the right ===== -->
+            <div id="events-panel" class="split-layout events-layout" role="tabpanel" aria-labelledby="events-tab">
+                <div class="pane list-pane">
+                    <!-- A filter is a row of toggle buttons. data-field: the event's field it checks;
+                         data-value: the value as the server sends it. All on at the start = all events. -->
+                    <div class="filter" data-field="tradingMethod">
+                        <span class="filter-label">Method:</span>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="LMSR">LMSR</button>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="ORDER_BOOK">Order Book</button>
+                    </div>
+                    <div class="filter" data-field="status">
+                        <span class="filter-label">Status:</span>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="NOT_STARTED">Not started</button>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="ACTIVE">Active</button>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="CLOSED">Closed</button>
+                    </div>
+                    <div class="filter" data-field="feeType">
+                        <span class="filter-label">Fee:</span>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="AT_PURCHASE">On purchase</button>
+                        <button type="button" class="toggle" aria-pressed="true" data-value="AT_RESOLUTION">On close</button>
+                    </div>
+
+                    <div class="list-toolbar">
+                        <span id="events-count"></span>
+                        <button id="events-refresh" class="button" type="button">Refresh</button>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table id="events-table" class="data-table"></table>
+                    </div>
+                </div>
+
+                <div class="pane details-pane">
+                    <p id="events-hint" class="placeholder">Select an event to see its details.</p>
+
+                    <div id="event-details" hidden>
+                        <h2 id="event-name" class="event-title"></h2>
+                        <p id="event-description" class="description"></p>
+                        <div id="event-facts" class="facts"></div>
+
+                        <h3 class="section-title">Outcomes</h3>
+                        <div class="table-wrap">
+                            <table id="outcomes-table" class="data-table"></table>
+                        </div>
+
+                        <!-- Only for Order Book events: one book per outcome, both made from the template below -->
+                        <div id="order-books" class="order-books">
+                            <div id="first-book"></div>
+                            <div id="second-book"></div>
+                        </div>
+
+                        <h3 class="section-title">Participants</h3>
+                        <div class="table-wrap limited">
+                            <table id="participants-table" class="data-table"></table>
+                        </div>
+
+                        <h3 class="section-title">Trade history (newest first)</h3>
+                        <div class="table-wrap limited">
+                            <table id="history-table" class="data-table"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ===== Account tab - the user screen (js/screens/account.js): the users on the left, my account on
+                 the right. Uploading event files is done in the JavaFX client. ===== -->
+            <div id="account-panel" class="split-layout account-layout" role="tabpanel" aria-labelledby="account-tab"
+                 hidden>
+                <div class="pane list-pane">
+                    <div class="list-toolbar">
+                        <h3 class="section-title">Users</h3>
+                        <button id="account-refresh" class="button" type="button">Refresh</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="users-table" class="data-table"></table>
+                    </div>
+                </div>
+
+                <div class="pane">
+                    <h3 class="section-title first">My account</h3>
+                    <div id="balance-facts" class="facts"></div>
+                    <!-- inputmode="decimal": a phone shows its number keyboard; the amount is checked by our code -->
+                    <form id="deposit-form" class="inline-form spaced">
+                        <label for="deposit-amount">Deposit:</label>
+                        <input id="deposit-amount" class="text-field amount-field" type="text" inputmode="decimal"
+                               placeholder="Amount" autocomplete="off">
+                        <button id="deposit-button" class="button" type="submit">Deposit</button>
+                    </form>
+                    <p id="deposit-message" class="form-message" hidden></p>
+
+                    <h3 class="section-title">My events (click one to see it below)</h3>
+                    <div class="table-wrap limited">
+                        <table id="my-events-table" class="data-table"></table>
+                    </div>
+
+                    <!-- One event from my side (js/screens/event-trade.js) -->
+                    <h3 class="section-title">Event details and trading</h3>
+                    <div class="inline-form">
+                        <label for="trade-event">Event:</label>
+                        <select id="trade-event" class="select">
+                            <option value="" disabled selected>Choose an event</option>
+                        </select>
+                    </div>
+                    <p id="trade-hint" class="placeholder">Choose an event to see your position in it and to trade.</p>
+
+                    <div id="trade-details" hidden>
+                        <div id="trade-facts" class="facts spaced"></div>
+
+                        <!-- Only the actions that fit the event's state and my role are shown. A fieldset: while
+                             an action runs, disabling it disables every field and button inside. -->
+                        <fieldset id="trade-actions" class="actions-box">
+                            <div id="open-action" class="inline-form">
+                                <button id="open-button" class="button primary" type="button">Open event</button>
+                                <span>You are the market maker: opening starts the trading and pays the event's
+                                    opening funds.</span>
+                            </div>
+
+                            <form id="buy-form" class="inline-form">
+                                <strong>Buy</strong>
+                                <select id="buy-outcome" class="select" aria-label="Outcome"></select>
+                                <label for="buy-shares">Shares:</label>
+                                <input id="buy-shares" class="text-field amount-field" type="text" inputmode="decimal"
+                                       autocomplete="off">
+                                <button class="button primary" type="submit">Buy</button>
+                            </form>
+
+                            <form id="order-form" class="inline-form">
+                                <strong>Order</strong>
+                                <!-- The values are the server's (BUY / SELL), the texts what the user sees -->
+                                <select id="order-side" class="select" aria-label="Side">
+                                    <option value="BUY">Buy</option>
+                                    <option value="SELL">Sell</option>
+                                </select>
+                                <select id="order-outcome" class="select" aria-label="Outcome"></select>
+                                <label for="order-shares">Shares:</label>
+                                <input id="order-shares" class="text-field amount-field" type="text"
+                                       inputmode="decimal" autocomplete="off">
+                                <label id="order-price-label" for="order-price">Price:</label>
+                                <input id="order-price" class="text-field amount-field" type="text"
+                                       inputmode="decimal" autocomplete="off">
+                                <button class="button primary" type="submit">Place order</button>
+                            </form>
+
+                            <form id="close-form" class="inline-form">
+                                <strong>Close</strong>
+                                <label for="close-winner">Winner:</label>
+                                <select id="close-winner" class="select"></select>
+                                <button class="button" type="submit">Close event</button>
+                            </form>
+
+                            <p id="no-actions" class="placeholder"></p>
+                            <p id="action-message" class="form-message" hidden></p>
+                        </fieldset>
+
+                        <h3 class="section-title">My holdings</h3>
+                        <div class="table-wrap">
+                            <table id="holdings-table" class="data-table"></table>
+                        </div>
+
+                        <div id="waiting-orders">
+                            <h3 class="section-title">My waiting orders</h3>
+                            <div class="table-wrap limited">
+                                <table id="waiting-orders-table" class="data-table"></table>
+                            </div>
+                        </div>
+
+                        <h3 class="section-title">My trades (newest first)</h3>
+                        <div class="table-wrap limited">
+                            <table id="my-trades-table" class="data-table"></table>
+                        </div>
+                    </div>
+
+                    <h3 class="section-title">Account history (newest first)</h3>
+                    <div class="table-wrap limited">
+                        <table id="ledger-table" class="data-table"></table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status bar: short messages that should not interrupt the user -->
+        <footer class="status-bar">
+            <span id="status-text"></span>
+        </footer>
+    </section>
+
+    <!-- One outcome's order book (js/screens/order-book.js). A <template> is never shown by itself:
+         the JavaScript copies it twice, once for each outcome - like including the same FXML twice. -->
+    <template id="order-book-template">
+        <div class="order-book">
+            <h3 class="section-title book-title">Order book</h3>
+            <!-- data-stat: the statistic's field in the server's answer (OrderBookDto) -->
+            <div class="stats-bar">
+                <span>LAST: <strong data-stat="lastPrice">-</strong></span>
+                <span>BID: <strong data-stat="bestBid">-</strong></span>
+                <span>ASK: <strong data-stat="bestAsk">-</strong></span>
+                <span>MID: <strong data-stat="midPrice">-</strong></span>
+                <span>SPREAD: <strong data-stat="spread">-</strong></span>
+            </div>
+            <div class="table-wrap limited">
+                <table class="data-table book-orders"></table>
+            </div>
+        </div>
+    </template>
+</body>
+</html>
