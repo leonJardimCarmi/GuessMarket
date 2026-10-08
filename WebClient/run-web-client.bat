@@ -5,7 +5,7 @@ rem It also opens http://localhost:3000 in the default browser. Keep this window
 title Guess Market Web Client
 cd /d "%~dp0"
 
-where node >/dev/null 2>nul
+where node >nul 2>nul
 if errorlevel 1 (
     echo Node.js was not found. Please install Node.js and run this file again.
     pause
